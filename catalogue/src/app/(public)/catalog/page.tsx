@@ -1,37 +1,33 @@
- "use client";
+"use client";
 
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { FilterPanel } from "@/components/features/FilterPanel";
 import { ProductCard } from "@/components/features/ProductCard";
 import { Button } from "@/components/ui/button";
 import { SlidersHorizontal } from "lucide-react";
-
-// Mock Data
-const products = Array.from({ length: 12 }).map((_, i) => ({
-    id: `prod-${i}`,
-    name: `Premium Cotton Shirt ${i + 1}`,
-    brand: "Luxe Basics",
-    price: 49.99 + i * 10,
-    originalPrice: i % 3 === 0 ? 69.99 + i * 10 : undefined,
-    discount: i % 3 === 0 ? 20 : undefined,
-    images: [
-        "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?q=80&w=1000&auto=format&fit=crop",
-        "https://images.unsplash.com/photo-1503342217505-b0815a046baf?q=80&w=1000&auto=format&fit=crop",
-    ],
-    inStock: true,
-    isNew: i < 4,
-}));
+import { searchProducts, Product } from "@/lib/api";
 
 export default function CatalogPage() {
     const searchParams = useSearchParams();
-    const search = searchParams.get("search")?.toLowerCase().trim() || "";
+    const search = searchParams.get("search") || "";
+    const [products, setProducts] = useState<Product[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
 
-    const filteredProducts = useMemo(() => {
-        if (!search) return products;
-        return products.filter((p) =>
-            [p.name, p.brand].some((field) => field.toLowerCase().includes(search))
-        );
+    useEffect(() => {
+        const fetchProducts = async () => {
+            setIsLoading(true);
+            try {
+                const data = await searchProducts(search);
+                setProducts(data);
+            } catch (error) {
+                console.error("Failed to fetch products:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchProducts();
     }, [search]);
 
     return (
@@ -65,16 +61,20 @@ export default function CatalogPage() {
 
                 {/* Product Grid */}
                 <div className="space-y-8">
-                    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        {filteredProducts.map((product) => (
-                            <ProductCard key={product.id} product={product} />
-                        ))}
-                        {filteredProducts.length === 0 && (
-                            <div className="col-span-full text-center text-muted-foreground">
-                                No products found.
-                            </div>
-                        )}
-                    </div>
+                    {isLoading ? (
+                        <div className="text-center py-12">Loading products...</div>
+                    ) : (
+                        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                            {products.map((product) => (
+                                <ProductCard key={product.id} product={product} />
+                            ))}
+                            {products.length === 0 && (
+                                <div className="col-span-full text-center text-muted-foreground">
+                                    No products found.
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     {/* Pagination */}
                     <div className="flex justify-center gap-2">
