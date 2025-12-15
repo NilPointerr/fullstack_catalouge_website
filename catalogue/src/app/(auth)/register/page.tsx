@@ -31,12 +31,14 @@ export default function RegisterPage() {
         const email = formData.get("email") as string;
         const password = formData.get("password") as string;
         const name = formData.get("name") as string;
+        const role = (formData.get("role") as string) || "user";
 
         try {
             const response = await api.post("/users/open", {
                 email,
                 password,
                 full_name: name,
+                user_type: role === "admin" ? "admin" : "user",
             });
 
             if (response.status === 200 || response.status === 201) {
@@ -103,6 +105,19 @@ export default function RegisterPage() {
                                     required
                                     minLength={6}
                                 />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="role">Role</Label>
+                                <select
+                                    id="role"
+                                    name="role"
+                                    className="border rounded-md px-3 py-2"
+                                    defaultValue="user"
+                                    disabled={isLoading}
+                                >
+                                    <option value="user">User</option>
+                                    <option value="admin">Admin</option>
+                                </select>
                             </div>
                             <Button disabled={isLoading} type="submit">
                                 {isLoading && (

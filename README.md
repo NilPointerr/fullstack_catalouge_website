@@ -77,8 +77,6 @@ This will start:
 │   │   └── store/           # Zustand stores
 │   ├── Dockerfile
 │   └── package.json
-├── nginx/
-│   └── nginx.conf           # Reverse proxy config
 └── docker-compose.yml
 ```
 
@@ -136,7 +134,6 @@ docker-compose logs -f
 # Specific service
 docker-compose logs -f backend
 docker-compose logs -f frontend
-docker-compose logs -f nginx
 ```
 
 ### Stop Services
@@ -173,7 +170,6 @@ npm run dev
 ### Default Ports
 - Backend API: `8000`
 - Frontend (Next.js): `3000`
-- Nginx reverse proxy: `8080` (host) -> `80` (container)
 
 ## 📝 Environment Variables
 

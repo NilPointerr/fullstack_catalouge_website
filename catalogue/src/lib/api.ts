@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { useAuthStore } from '@/store/auth-store';
 
-const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1';
+const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://backend:8000/api/v1';
 
 export const api = axios.create({
     baseURL,
@@ -27,10 +27,7 @@ api.interceptors.response.use(
         const originalRequest = error.config;
         if (error.response?.status === 401 && !originalRequest._retry) {
             originalRequest._retry = true;
-            // Handle token refresh logic here if needed
-            // For now, we'll just logout
             useAuthStore.getState().logout();
-            // window.location.href = '/login'; // Optional: redirect to login
         }
         return Promise.reject(error);
     }

@@ -6,6 +6,7 @@ from sqlalchemy.future import select
 
 from app.api import deps
 from app.core import security
+from app.core.config import settings
 from app.models.user import User
 from app.schemas.user import User as UserSchema, UserCreate, UserUpdate
 
@@ -30,10 +31,9 @@ async def create_user(
     *,
     db: AsyncSession = Depends(deps.get_db),
     user_in: UserCreate,
-    current_user: User = Depends(deps.get_current_active_superuser),
 ) -> Any:
     """
-    Create new user.
+    Create new user (no auth required).
     """
     result = await db.execute(select(User).filter(User.email == user_in.email))
     user = result.scalars().first()
@@ -100,9 +100,7 @@ async def read_user_me(
 async def create_user_open(
     *,
     db: AsyncSession = Depends(deps.get_db),
-    password: str = Body(...),
-    email: str = Body(...),
-    full_name: str = Body(None),
+    user_in: UserCreate,
 ) -> Any:
     """
     Create new user without the need to be logged in.
@@ -113,19 +111,21 @@ async def create_user_open(
             detail="Open user registration is forbidden on this server",
         )
     
-    result = await db.execute(select(User).filter(User.email == email))
+    result = await db.execute(select(User).filter(User.email == user_in.email))
     user = result.scalars().first()
     if user:
         raise HTTPException(
             status_code=400,
             detail="The user with this username already exists in the system.",
         )
-        
-    user_in = UserCreate(password=password, email=email, full_name=full_name)
+
+    is_admin = user_in.user_type == "admin"
     db_user = User(
         email=user_in.email,
         hashed_password=security.get_password_hash(user_in.password),
         full_name=user_in.full_name,
+        is_superuser=is_admin,
+        is_active=user_in.is_active if user_in.is_active is not None else True,
     )
     db.add(db_user)
     await db.commit()

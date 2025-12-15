@@ -269,7 +269,6 @@ curl http://localhost:8000/api/v1/categories/
 
 ### Configuration
 - `docker-compose.yml` - All services
-- `nginx/nginx.conf` - Reverse proxy config
 - `backend/app/core/config.py` - Backend settings
 - `catalogue/next.config.ts` - Frontend config
 

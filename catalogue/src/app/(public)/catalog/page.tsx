@@ -1,3 +1,7 @@
+ "use client";
+
+import { useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { FilterPanel } from "@/components/features/FilterPanel";
 import { ProductCard } from "@/components/features/ProductCard";
 import { Button } from "@/components/ui/button";
@@ -20,13 +24,23 @@ const products = Array.from({ length: 12 }).map((_, i) => ({
 }));
 
 export default function CatalogPage() {
+    const searchParams = useSearchParams();
+    const search = searchParams.get("search")?.toLowerCase().trim() || "";
+
+    const filteredProducts = useMemo(() => {
+        if (!search) return products;
+        return products.filter((p) =>
+            [p.name, p.brand].some((field) => field.toLowerCase().includes(search))
+        );
+    }, [search]);
+
     return (
         <div className="container py-8">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">All Products</h1>
                     <p className="text-muted-foreground mt-1">
-                        Showing 1-12 of 100 products
+                        {search ? `Showing results for "${search}"` : "Showing 1-12 of 100 products"}
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -52,9 +66,14 @@ export default function CatalogPage() {
                 {/* Product Grid */}
                 <div className="space-y-8">
                     <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        {products.map((product) => (
+                        {filteredProducts.map((product) => (
                             <ProductCard key={product.id} product={product} />
                         ))}
+                        {filteredProducts.length === 0 && (
+                            <div className="col-span-full text-center text-muted-foreground">
+                                No products found.
+                            </div>
+                        )}
                     </div>
 
                     {/* Pagination */}

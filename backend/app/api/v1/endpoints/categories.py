@@ -41,7 +41,18 @@ async def create_category(
     """
     Create new category.
     """
-    db_category = Category(**category_in.dict())
+    data = category_in.model_dump()
+    parent_id = data.get("parent_id")
+    if parent_id in (0, None):
+        data["parent_id"] = None
+    else:
+        # ensure parent exists
+        result = await db.execute(select(Category).filter(Category.id == parent_id))
+        parent = result.scalars().first()
+        if not parent:
+            raise HTTPException(status_code=400, detail="Parent category not found")
+
+    db_category = Category(**data)
     db.add(db_category)
     await db.commit()
     await db.refresh(db_category)

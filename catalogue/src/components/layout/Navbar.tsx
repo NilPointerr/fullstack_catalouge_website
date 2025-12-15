@@ -1,18 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Search, Heart, User, Menu, X, Sun, Moon } from "lucide-react";
-import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { Search, Heart, User, Menu, X, Sun, Moon, LogOut, UserCircle2 } from "lucide-react";
+import { FormEvent, useState } from "react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth-store";
 
 export function Navbar() {
     const pathname = usePathname();
+    const router = useRouter();
     const { theme, setTheme } = useTheme();
-    const { user } = useAuthStore();
+    const { user, logout } = useAuthStore();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
     const navLinks = [
         { name: "Home", href: "/" },
@@ -49,9 +53,33 @@ export function Navbar() {
                 {/* Actions */}
                 <div className="flex items-center gap-4">
                     {/* Search */}
-                    <div className="relative hidden md:block">
-                        <Search className="h-5 w-5 text-muted-foreground hover:text-foreground cursor-pointer" />
-                    </div>
+                <form
+                    className="relative hidden md:flex items-center gap-2"
+                    onSubmit={(e: FormEvent) => {
+                        e.preventDefault();
+                        if (searchTerm.trim()) {
+                            router.push(`/catalog?search=${encodeURIComponent(searchTerm.trim())}`);
+                            setIsSearchOpen(false);
+                        }
+                    }}
+                >
+                    {isSearchOpen && (
+                        <input
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            placeholder="Search products..."
+                            className="h-9 w-56 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        />
+                    )}
+                    <button
+                        type="button"
+                        className="rounded-full p-2 hover:bg-accent"
+                        onClick={() => setIsSearchOpen((prev) => !prev)}
+                        aria-label="Search"
+                    >
+                        <Search className="h-5 w-5 text-muted-foreground hover:text-foreground" />
+                    </button>
+                </form>
 
                     {/* Theme Toggle */}
                     <button
@@ -70,11 +98,37 @@ export function Navbar() {
 
                     {/* User Menu */}
                     {user ? (
-                        <div className="relative group">
-                            <button className="flex items-center gap-2">
+                        <div className="relative">
+                            <button
+                                className="flex items-center gap-2 rounded-full p-2 hover:bg-accent"
+                                onClick={() => setIsUserMenuOpen((prev) => !prev)}
+                                aria-label="User menu"
+                            >
                                 <User className="h-5 w-5" />
                             </button>
-                            {/* Dropdown would go here */}
+                            {isUserMenuOpen && (
+                                <div className="absolute right-0 mt-2 w-44 rounded-md border bg-background shadow-lg p-2 space-y-1">
+                                    <Link
+                                        href="/profile"
+                                        className="flex items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-accent"
+                                        onClick={() => setIsUserMenuOpen(false)}
+                                    >
+                                        <UserCircle2 className="h-4 w-4" />
+                                        My Profile
+                                    </Link>
+                                    <button
+                                        className="flex w-full items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-accent text-left"
+                                        onClick={() => {
+                                            logout();
+                                            setIsUserMenuOpen(false);
+                                            router.push("/login");
+                                        }}
+                                    >
+                                        <LogOut className="h-4 w-4" />
+                                        Logout
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     ) : (
                         <Link href="/login" className="text-sm font-medium hover:underline">

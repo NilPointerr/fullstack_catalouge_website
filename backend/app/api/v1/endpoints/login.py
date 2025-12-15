@@ -1,7 +1,6 @@
 from datetime import timedelta
 from typing import Any
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -9,23 +8,23 @@ from app.api import deps
 from app.core import security
 from app.core.config import settings
 from app.models.user import User
-from app.schemas.token import Token
+from app.schemas.token import Token, LoginRequest
 
 router = APIRouter()
 
 @router.post("/login/access-token", response_model=Token)
 async def login_access_token(
+    *,
     db: AsyncSession = Depends(deps.get_db),
-    form_data: OAuth2PasswordRequestForm = Depends()
+    credentials: LoginRequest = Body(..., description="JSON body with email and password"),
 ) -> Any:
     """
-    OAuth2 compatible token login, get an access token for future requests
+    Login with email/password and return a JWT bearer token.
     """
-    # Find user by email
-    result = await db.execute(select(User).filter(User.email == form_data.username))
+    result = await db.execute(select(User).filter(User.email == credentials.email))
     user = result.scalars().first()
 
-    if not user or not security.verify_password(form_data.password, user.hashed_password):
+    if not user or not security.verify_password(credentials.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Incorrect email or password"

@@ -41,26 +41,12 @@ export default function LoginPage() {
         const password = formData.get("password") as string;
 
         try {
-            // Login API call - OAuth2PasswordRequestForm expects username and password as form data
-            const formDataToSend = new URLSearchParams();
-            formDataToSend.append("username", email);
-            formDataToSend.append("password", password);
-
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1'}/login/access-token`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/x-www-form-urlencoded",
-                },
-                body: formDataToSend.toString(),
+            const response = await api.post("/login/access-token", {
+                email,
+                password,
             });
 
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ detail: "Invalid email or password" }));
-                throw new Error(errorData.detail || "Login failed");
-            }
-
-            const tokenData = await response.json();
-            const accessToken = tokenData.access_token;
+            const accessToken = response.data.access_token;
 
             // Temporarily set token in store to use with API interceptor
             useAuthStore.setState({ accessToken });
@@ -83,7 +69,8 @@ export default function LoginPage() {
             setIsLoading(false);
             router.push("/");
         } catch (err: any) {
-            setError(err.message || "An error occurred during login");
+            const message = err.response?.data?.detail || err.message || "An error occurred during login";
+            setError(message);
             setIsLoading(false);
         }
     }
