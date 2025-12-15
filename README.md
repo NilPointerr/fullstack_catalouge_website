@@ -155,7 +155,8 @@ docker-compose up --build -d
 
 ```bash
 cd backend
-pip install -r requirements.txt
+pip install uv
+uv pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 

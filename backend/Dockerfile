@@ -6,7 +6,8 @@ ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Use uv as package manager for faster, cached installs
+RUN pip install --no-cache-dir uv && uv pip install --no-cache -r requirements.txt
 
 COPY . .
 
