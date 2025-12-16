@@ -79,11 +79,27 @@ export interface UserUpdateData {
     password?: string;
 }
 
+export interface Category {
+    id: number;
+    name: string;
+    slug: string;
+    description?: string;
+    image_url?: string;
+    is_active: boolean;
+}
+
 // API Methods
-export const searchProducts = async (query: string): Promise<Product[]> => {
-    const response = await api.get<Product[]>('/products', {
-        params: { search: query },
-    });
+export const getCategories = async (): Promise<Category[]> => {
+    const response = await api.get<Category[]>('/categories');
+    return response.data;
+};
+
+export const searchProducts = async (query?: string, categoryId?: number): Promise<Product[]> => {
+    const params: any = {};
+    if (query) params.search = query;
+    if (categoryId) params.category_id = categoryId;
+    
+    const response = await api.get<Product[]>('/products', { params });
     return response.data;
 };
 
@@ -99,5 +115,29 @@ export const getProfile = async (): Promise<User> => {
 
 export const updateProfile = async (data: UserUpdateData): Promise<User> => {
     const response = await api.put<User>('/users/me', data);
+    return response.data;
+};
+
+export interface WishlistItem {
+    id: number;
+    user_id: number;
+    product_id: number;
+    product: Product;
+}
+
+export const getWishlist = async (): Promise<WishlistItem[]> => {
+    const response = await api.get<WishlistItem[]>('/wishlist');
+    return response.data;
+};
+
+export const addToWishlist = async (productId: number): Promise<WishlistItem> => {
+    const response = await api.post<WishlistItem>('/wishlist', {
+        product_id: productId,
+    });
+    return response.data;
+};
+
+export const removeFromWishlist = async (productId: number): Promise<WishlistItem> => {
+    const response = await api.delete<WishlistItem>(`/wishlist/${productId}`);
     return response.data;
 };

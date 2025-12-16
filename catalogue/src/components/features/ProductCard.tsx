@@ -5,16 +5,72 @@ import Link from "next/link";
 import { Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
-import { Product } from "@/lib/api";
+import { useState, useEffect } from "react";
+import { Product, addToWishlist, removeFromWishlist, getWishlist } from "@/lib/api";
+import { useAuthStore } from "@/store/auth-store";
+import { useRouter } from "next/navigation";
 
 interface ProductCardProps {
     product: Product;
+    onWishlistChange?: () => void;
 }
 
-export function ProductCard({ product }: ProductCardProps) {
+export function ProductCard({ product, onWishlistChange }: ProductCardProps) {
+    const router = useRouter();
+    const { isAuthenticated } = useAuthStore();
     const [isHovered, setIsHovered] = useState(false);
     const [isWishlisted, setIsWishlisted] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+
+    // Check if product is in wishlist on mount
+    useEffect(() => {
+        const checkWishlistStatus = async () => {
+            if (!isAuthenticated) return;
+            try {
+                const wishlist = await getWishlist();
+                const inWishlist = wishlist.some(item => item.product_id === product.id);
+                setIsWishlisted(inWishlist);
+            } catch (error) {
+                console.error("Failed to check wishlist status:", error);
+            }
+        };
+        checkWishlistStatus();
+    }, [isAuthenticated, product.id]);
+
+    const handleWishlistToggle = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (!isAuthenticated) {
+            router.push("/login");
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            if (isWishlisted) {
+                await removeFromWishlist(product.id);
+                setIsWishlisted(false);
+                // Refresh wishlist if callback provided (e.g., on wishlist page)
+                if (onWishlistChange) {
+                    onWishlistChange();
+                }
+            } else {
+                await addToWishlist(product.id);
+                setIsWishlisted(true);
+                // Refresh wishlist if callback provided
+                if (onWishlistChange) {
+                    onWishlistChange();
+                }
+            }
+        } catch (error: any) {
+            console.error("Failed to update wishlist:", error);
+            const errorMessage = error.response?.data?.detail || "Failed to update wishlist";
+            alert(errorMessage);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     // Helper to get image URL
     const getImageUrl = (index: number) => {
@@ -68,11 +124,9 @@ export function ProductCard({ product }: ProductCardProps) {
 
                 {/* Wishlist Button */}
                 <button
-                    onClick={(e) => {
-                        e.preventDefault();
-                        setIsWishlisted(!isWishlisted);
-                    }}
-                    className="absolute right-2 top-2 rounded-full bg-background/80 p-2 text-foreground backdrop-blur-sm transition-colors hover:bg-background hover:text-red-500"
+                    onClick={handleWishlistToggle}
+                    disabled={isLoading}
+                    className="absolute right-2 top-2 rounded-full bg-background/80 p-2 text-foreground backdrop-blur-sm transition-colors hover:bg-background hover:text-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     <Heart className={cn("h-4 w-4", isWishlisted && "fill-current text-red-500")} />
                 </button>
@@ -97,7 +151,7 @@ export function ProductCard({ product }: ProductCardProps) {
                     </Link>
                 </div>
                 <div className="mt-2 flex items-center gap-2">
-                    <span className="font-bold">${product.base_price.toFixed(2)}</span>
+                    <span className="font-bold">${(product.base_price ?? 0).toFixed(2)}</span>
                     {/* Original price / discount logic would go here if available in API */}
                 </div>
             </div>

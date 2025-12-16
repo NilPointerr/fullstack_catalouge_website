@@ -6,19 +6,44 @@ import { FilterPanel } from "@/components/features/FilterPanel";
 import { ProductCard } from "@/components/features/ProductCard";
 import { Button } from "@/components/ui/button";
 import { SlidersHorizontal } from "lucide-react";
-import { searchProducts, Product } from "@/lib/api";
+import { searchProducts, Product, getCategories, Category } from "@/lib/api";
 
 export default function CatalogPage() {
     const searchParams = useSearchParams();
     const search = searchParams.get("search") || "";
+    const categoryParam = searchParams.get("category") || "";
     const [products, setProducts] = useState<Product[]>([]);
+    const [categories, setCategories] = useState<Category[]>([]);
+    const [selectedCategoryId, setSelectedCategoryId] = useState<number | undefined>(undefined);
     const [isLoading, setIsLoading] = useState(true);
 
+    // Fetch categories
+    useEffect(() => {
+        const fetchCategories = async () => {
+            try {
+                const data = await getCategories();
+                setCategories(data);
+                
+                // Find category by slug from URL
+                if (categoryParam) {
+                    const category = data.find(c => c.slug.toLowerCase() === categoryParam.toLowerCase());
+                    if (category) {
+                        setSelectedCategoryId(category.id);
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to fetch categories:", error);
+            }
+        };
+        fetchCategories();
+    }, [categoryParam]);
+
+    // Fetch products
     useEffect(() => {
         const fetchProducts = async () => {
             setIsLoading(true);
             try {
-                const data = await searchProducts(search);
+                const data = await searchProducts(search || undefined, selectedCategoryId);
                 setProducts(data);
             } catch (error) {
                 console.error("Failed to fetch products:", error);
@@ -28,7 +53,7 @@ export default function CatalogPage() {
         };
 
         fetchProducts();
-    }, [search]);
+    }, [search, selectedCategoryId]);
 
     return (
         <div className="container py-8">
@@ -36,7 +61,11 @@ export default function CatalogPage() {
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">All Products</h1>
                     <p className="text-muted-foreground mt-1">
-                        {search ? `Showing results for "${search}"` : "Showing 1-12 of 100 products"}
+                        {search 
+                            ? `Showing results for "${search}"` 
+                            : categoryParam
+                            ? `Showing ${products.length} products in ${categoryParam}`
+                            : `Showing ${products.length} products`}
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -56,7 +85,11 @@ export default function CatalogPage() {
             <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-8">
                 {/* Sidebar Filters */}
                 <aside className="hidden md:block">
-                    <FilterPanel />
+                    <FilterPanel 
+                        categories={categories}
+                        selectedCategoryId={selectedCategoryId}
+                        onCategoryChange={setSelectedCategoryId}
+                    />
                 </aside>
 
                 {/* Product Grid */}

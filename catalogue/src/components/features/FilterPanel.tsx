@@ -2,19 +2,56 @@
 
 import * as React from "react";
 import { Button } from "@/components/ui/button";
+import { Category } from "@/lib/api";
+import { useRouter, useSearchParams } from "next/navigation";
 
-// For now, I'll implement simple HTML inputs for filters to save time on UI components, 
-// or I can quickly scaffold the UI components. 
-// Given the "Beautiful and smooth" requirement, I should probably use proper components.
-// I'll create a simplified version here using standard Tailwind classes for inputs if components aren't ready,
-// but I'll try to be clean.
+interface FilterPanelProps {
+    categories: Category[];
+    selectedCategoryId?: number;
+    onCategoryChange?: (categoryId: number | undefined) => void;
+}
 
-export function FilterPanel() {
+export function FilterPanel({ categories, selectedCategoryId, onCategoryChange }: FilterPanelProps) {
+    const router = useRouter();
+    const searchParams = useSearchParams();
+
+    const handleCategoryClick = (category: Category) => {
+        if (selectedCategoryId === category.id) {
+            // Deselect
+            if (onCategoryChange) {
+                onCategoryChange(undefined);
+            }
+            const params = new URLSearchParams(searchParams.toString());
+            params.delete("category");
+            router.push(`/catalog?${params.toString()}`);
+        } else {
+            // Select
+            if (onCategoryChange) {
+                onCategoryChange(category.id);
+            }
+            const params = new URLSearchParams(searchParams.toString());
+            params.set("category", category.slug);
+            router.push(`/catalog?${params.toString()}`);
+        }
+    };
+
+    const handleClearAll = () => {
+        if (onCategoryChange) {
+            onCategoryChange(undefined);
+        }
+        router.push("/catalog");
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <h3 className="font-semibold">Filters</h3>
-                <Button variant="ghost" size="sm" className="h-auto p-0 text-muted-foreground">
+                <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-auto p-0 text-muted-foreground"
+                    onClick={handleClearAll}
+                >
                     Clear All
                 </Button>
             </div>
@@ -23,10 +60,19 @@ export function FilterPanel() {
             <div className="space-y-3">
                 <h4 className="text-sm font-medium">Category</h4>
                 <div className="space-y-2">
-                    {["Men", "Women", "Kids", "Accessories"].map((category) => (
-                        <label key={category} className="flex items-center gap-2 text-sm">
-                            <input type="checkbox" className="rounded border-gray-300" />
-                            {category}
+                    {categories.map((category) => (
+                        <label 
+                            key={category.id} 
+                            className="flex items-center gap-2 text-sm cursor-pointer"
+                            onClick={() => handleCategoryClick(category)}
+                        >
+                            <input 
+                                type="checkbox" 
+                                className="rounded border-gray-300" 
+                                checked={selectedCategoryId === category.id}
+                                onChange={() => handleCategoryClick(category)}
+                            />
+                            {category.name}
                         </label>
                     ))}
                 </div>
