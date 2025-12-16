@@ -17,21 +17,65 @@ def read_products(
     skip: int = 0,
     limit: int = 100,
     category_id: Optional[int] = None,
+    category_ids: Optional[str] = None,  # Comma-separated category IDs
     search: Optional[str] = None,
+    min_price: Optional[float] = None,
+    max_price: Optional[float] = None,
+    color: Optional[str] = None,
+    size: Optional[str] = None,
 ) -> Any:
     """
     Retrieve products with filtering.
+    
+    Supports:
+    - category_id: Single category ID (for backward compatibility)
+    - category_ids: Comma-separated category IDs (e.g., "1,2,3")
+    - search: Search by product name
+    - min_price: Minimum price filter
+    - max_price: Maximum price filter
+    - color: Filter by variant color
+    - size: Filter by variant size
     """
+    from sqlalchemy import or_, and_
+    
     query = db.query(Product).options(
         selectinload(Product.variants),
         selectinload(Product.images)
     )
     
-    if category_id:
+    # Category filtering - support both single and multiple
+    if category_ids:
+        # Parse comma-separated category IDs
+        try:
+            cat_ids = [int(cid.strip()) for cid in category_ids.split(",") if cid.strip()]
+            if cat_ids:
+                query = query.filter(Product.category_id.in_(cat_ids))
+        except ValueError:
+            pass
+    elif category_id:
         query = query.filter(Product.category_id == category_id)
         
     if search:
         query = query.filter(Product.name.ilike(f"%{search}%"))
+    
+    # Price filtering
+    if min_price is not None:
+        query = query.filter(Product.base_price >= min_price)
+    if max_price is not None:
+        query = query.filter(Product.base_price <= max_price)
+    
+    # Color and size filtering (via variants)
+    if color or size:
+        # Join with variants for color/size filtering
+        query = query.join(ProductVariant)
+        
+        if color:
+            query = query.filter(ProductVariant.color.ilike(f"%{color}%"))
+        if size:
+            query = query.filter(ProductVariant.size.ilike(f"%{size}%"))
+        
+        # Use distinct to avoid duplicate products when multiple variants match
+        query = query.distinct()
         
     products = query.offset(skip).limit(limit).all()
     return products

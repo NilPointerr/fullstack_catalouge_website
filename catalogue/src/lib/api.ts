@@ -112,10 +112,38 @@ export const getCategories = async (): Promise<Category[]> => {
     return response.data;
 };
 
-export const searchProducts = async (query?: string, categoryId?: number): Promise<Product[]> => {
+export interface ProductFilters {
+    query?: string;
+    categoryIds?: number[];
+    minPrice?: number;
+    maxPrice?: number;
+    colors?: string[];
+    sizes?: string[];
+}
+
+export const searchProducts = async (
+    query?: string, 
+    categoryId?: number,
+    filters?: ProductFilters
+): Promise<Product[]> => {
     const params: any = {};
     if (query) params.search = query;
     if (categoryId) params.category_id = categoryId;
+    
+    // Apply new filters
+    if (filters) {
+        if (filters.categoryIds && filters.categoryIds.length > 0) {
+            params.category_ids = filters.categoryIds.join(',');
+        }
+        if (filters.minPrice !== undefined) params.min_price = filters.minPrice;
+        if (filters.maxPrice !== undefined) params.max_price = filters.maxPrice;
+        if (filters.colors && filters.colors.length > 0) {
+            params.color = filters.colors[0]; // Backend currently supports single color
+        }
+        if (filters.sizes && filters.sizes.length > 0) {
+            params.size = filters.sizes[0]; // Backend currently supports single size
+        }
+    }
     
     const response = await api.get<Product[]>('/products', { params });
     return response.data;

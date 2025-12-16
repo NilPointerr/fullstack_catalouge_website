@@ -6,16 +6,50 @@ import { FilterPanel } from "@/components/features/FilterPanel";
 import { ProductCard } from "@/components/features/ProductCard";
 import { Button } from "@/components/ui/button";
 import { SlidersHorizontal } from "lucide-react";
-import { searchProducts, Product, getCategories, Category } from "@/lib/api";
+import { searchProducts, Product, getCategories, Category, ProductFilters } from "@/lib/api";
 
 export default function CatalogPage() {
     const searchParams = useSearchParams();
     const search = searchParams.get("search") || "";
-    const categoryParam = searchParams.get("category") || "";
+    const categoriesParam = searchParams.get("categories") || "";
+    const colorsParam = searchParams.get("colors") || "";
+    const sizesParam = searchParams.get("sizes") || "";
+    const maxPriceParam = searchParams.get("max_price");
+    
     const [products, setProducts] = useState<Product[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
-    const [selectedCategoryId, setSelectedCategoryId] = useState<number | undefined>(undefined);
+    const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
+    const [selectedColors, setSelectedColors] = useState<string[]>([]);
+    const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
+    const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000]);
     const [isLoading, setIsLoading] = useState(true);
+
+    // Initialize filters from URL params
+    useEffect(() => {
+        // Parse categories from URL
+        if (categoriesParam) {
+            const categorySlugs = categoriesParam.split(',').map(s => s.trim());
+            // We'll set the IDs after categories are loaded
+        }
+        
+        // Parse colors from URL
+        if (colorsParam) {
+            setSelectedColors(colorsParam.split(',').map(c => c.trim()));
+        }
+        
+        // Parse sizes from URL
+        if (sizesParam) {
+            setSelectedSizes(sizesParam.split(',').map(s => s.trim()));
+        }
+        
+        // Parse max price from URL
+        if (maxPriceParam) {
+            const maxPrice = parseInt(maxPriceParam);
+            if (!isNaN(maxPrice)) {
+                setPriceRange([0, maxPrice]);
+            }
+        }
+    }, []);
 
     // Fetch categories
     useEffect(() => {
@@ -24,26 +58,35 @@ export default function CatalogPage() {
                 const data = await getCategories();
                 setCategories(data);
                 
-                // Find category by slug from URL
-                if (categoryParam) {
-                    const category = data.find(c => c.slug.toLowerCase() === categoryParam.toLowerCase());
-                    if (category) {
-                        setSelectedCategoryId(category.id);
-                    }
+                // Set category IDs from URL slugs
+                if (categoriesParam) {
+                    const categorySlugs = categoriesParam.split(',').map(s => s.trim().toLowerCase());
+                    const matchingCategories = data.filter(c => 
+                        categorySlugs.includes(c.slug.toLowerCase())
+                    );
+                    setSelectedCategoryIds(matchingCategories.map(c => c.id));
                 }
             } catch (error) {
                 console.error("Failed to fetch categories:", error);
             }
         };
         fetchCategories();
-    }, [categoryParam]);
+    }, [categoriesParam]);
 
-    // Fetch products
+    // Fetch products with filters
     useEffect(() => {
         const fetchProducts = async () => {
             setIsLoading(true);
             try {
-                const data = await searchProducts(search || undefined, selectedCategoryId);
+                const filters: ProductFilters = {
+                    categoryIds: selectedCategoryIds.length > 0 ? selectedCategoryIds : undefined,
+                    colors: selectedColors.length > 0 ? selectedColors : undefined,
+                    sizes: selectedSizes.length > 0 ? selectedSizes : undefined,
+                    minPrice: priceRange[0] > 0 ? priceRange[0] : undefined,
+                    maxPrice: priceRange[1] < 1000 ? priceRange[1] : undefined,
+                };
+                
+                const data = await searchProducts(search || undefined, undefined, filters);
                 setProducts(data);
             } catch (error) {
                 console.error("Failed to fetch products:", error);
@@ -53,7 +96,22 @@ export default function CatalogPage() {
         };
 
         fetchProducts();
-    }, [search, selectedCategoryId]);
+    }, [search, selectedCategoryIds, selectedColors, selectedSizes, priceRange]);
+
+    const getFilterSummary = () => {
+        const parts: string[] = [];
+        if (selectedCategoryIds.length > 0) {
+            const categoryNames = selectedCategoryIds
+                .map(id => categories.find(c => c.id === id)?.name)
+                .filter(Boolean)
+                .join(', ');
+            parts.push(categoryNames);
+        }
+        if (parts.length === 0) {
+            return `Showing ${products.length} products`;
+        }
+        return `Showing ${products.length} products in ${parts.join(', ')}`;
+    };
 
     return (
         <div className="container py-8">
@@ -63,9 +121,7 @@ export default function CatalogPage() {
                     <p className="text-muted-foreground mt-1">
                         {search 
                             ? `Showing results for "${search}"` 
-                            : categoryParam
-                            ? `Showing ${products.length} products in ${categoryParam}`
-                            : `Showing ${products.length} products`}
+                            : getFilterSummary()}
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -87,8 +143,14 @@ export default function CatalogPage() {
                 <aside className="hidden md:block">
                     <FilterPanel 
                         categories={categories}
-                        selectedCategoryId={selectedCategoryId}
-                        onCategoryChange={setSelectedCategoryId}
+                        selectedCategoryIds={selectedCategoryIds}
+                        selectedColors={selectedColors}
+                        selectedSizes={selectedSizes}
+                        priceRange={priceRange}
+                        onCategoryChange={setSelectedCategoryIds}
+                        onColorChange={setSelectedColors}
+                        onSizeChange={setSelectedSizes}
+                        onPriceChange={setPriceRange}
                     />
                 </aside>
 
