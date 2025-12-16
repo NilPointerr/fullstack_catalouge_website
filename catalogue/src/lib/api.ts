@@ -1,7 +1,25 @@
 import axios from 'axios';
 import { useAuthStore } from '@/store/auth-store';
 
-const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://backend:8000/api/v1';
+// Get API base URL - use localhost for client-side, backend hostname for server-side
+const getBaseURL = () => {
+    if (typeof window !== 'undefined') {
+        // Client-side: use localhost
+        return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+    }
+    // Server-side: use backend hostname
+    return process.env.NEXT_PUBLIC_API_URL || 'http://backend:8000/api/v1';
+};
+
+const baseURL = getBaseURL();
+
+// Get backend base URL (without /api/v1) for static file serving
+export const getBackendBaseURL = () => {
+    if (typeof window !== 'undefined') {
+        return process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:8000';
+    }
+    return process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://backend:8000';
+};
 
 export const api = axios.create({
     baseURL,

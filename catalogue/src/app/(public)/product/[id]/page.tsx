@@ -92,11 +92,22 @@ export default function ProductPage() {
         return <div className="container py-12 text-center">Product not found.</div>;
     }
 
-    // Helper to get image URLs
-    const imageUrls = product.images.map(img => img.image_url);
-    if (imageUrls.length === 0) {
-        imageUrls.push("https://placehold.co/600x800?text=No+Image");
-    }
+    // Helper to get image URLs - prepend backend URL if relative path
+    const getImageUrl = (url: string) => {
+        if (!url) return "https://placehold.co/600x800?text=No+Image";
+        if (url.startsWith("http://") || url.startsWith("https://")) {
+            return url;
+        }
+        // Relative path - prepend backend URL
+        const backendUrl = typeof window !== 'undefined' 
+            ? (process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:8000')
+            : 'http://localhost:8000';
+        return `${backendUrl}${url.startsWith('/') ? url : '/' + url}`;
+    };
+    
+    const imageUrls = product.images.length > 0 
+        ? product.images.map(img => getImageUrl(img.image_url))
+        : ["https://placehold.co/600x800?text=No+Image"];
 
     return (
         <div className="container py-8 md:py-12">

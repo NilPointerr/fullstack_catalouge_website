@@ -4,6 +4,7 @@ services:
     container_name: catalog_backend
     volumes:
       - ./backend:/app
+      - ./backend/uploads:/app/uploads
     ports:
       - "8000:8000"
     environment:

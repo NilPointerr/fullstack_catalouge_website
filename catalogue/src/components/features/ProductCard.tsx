@@ -72,12 +72,24 @@ export function ProductCard({ product, onWishlistChange }: ProductCardProps) {
         }
     };
 
-    // Helper to get image URL
+    // Helper to get image URL - prepend backend URL if relative path
     const getImageUrl = (index: number) => {
-        if (product.images && product.images.length > index) {
-            return product.images[index].image_url;
+        if (!product.images || product.images.length === 0) {
+            return "https://placehold.co/600x800?text=No+Image";
         }
-        return "https://placehold.co/600x800?text=No+Image"; // Fallback
+        if (index >= product.images.length) {
+            return "https://placehold.co/600x800?text=No+Image";
+        }
+        const url = product.images[index].image_url;
+        if (!url) return "https://placehold.co/600x800?text=No+Image";
+        if (url.startsWith("http://") || url.startsWith("https://")) {
+            return url;
+        }
+        // Relative path - prepend backend URL
+        const backendUrl = typeof window !== 'undefined'
+            ? (process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:8000')
+            : 'http://localhost:8000';
+        return `${backendUrl}${url.startsWith('/') ? url : '/' + url}`;
     };
 
     const mainImage = getImageUrl(0);
