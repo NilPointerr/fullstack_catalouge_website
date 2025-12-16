@@ -10,17 +10,7 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
 
     # Database
-    DATABASE_URL: str = "postgresql://postgres:postgres@db:5432/catalog_db"
-
-    # Redis
-    REDIS_URL: str = "redis://redis:6379/0"
-
-    # MinIO
-    MINIO_ENDPOINT: str = "minio:9000"
-    MINIO_ACCESS_KEY: str = "minioadmin"
-    MINIO_SECRET_KEY: str = "minioadmin"
-    MINIO_BUCKET_NAME: str = "catalog-images"
-    MINIO_SECURE: bool = False
+    DATABASE_URL: str = "postgresql://postgres:postgres@catalog_db:5432/catalog_db?ssl=disable"
 
     USERS_OPEN_REGISTRATION: bool = True
 

@@ -1,23 +1,21 @@
-import asyncio
 import logging
 
-from app.db.session import AsyncSessionLocal
+from app.db.session import SessionLocal
 from app.core.config import settings
 from app.core.security import get_password_hash
 from app.models.user import User
 from app.models.category import Category
 from app.models.product import Product, ProductVariant, ProductImage
-from sqlalchemy.future import select
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-async def init_db() -> None:
-    async with AsyncSessionLocal() as db:
+def init_db() -> None:
+    db = SessionLocal()
+    try:
         # Create Superuser
         logger.info("Creating superuser...")
-        result = await db.execute(select(User).filter(User.email == "admin@example.com"))
-        user = result.scalars().first()
+        user = db.query(User).filter(User.email == "admin@example.com").first()
         if not user:
             user = User(
                 email="admin@example.com",
@@ -27,7 +25,7 @@ async def init_db() -> None:
                 is_active=True,
             )
             db.add(user)
-            await db.commit()
+            db.commit()
             logger.info("Superuser created.")
         else:
             logger.info("Superuser already exists.")
@@ -41,19 +39,17 @@ async def init_db() -> None:
         ]
         
         for cat_data in categories_data:
-            result = await db.execute(select(Category).filter(Category.slug == cat_data["slug"]))
-            category = result.scalars().first()
+            category = db.query(Category).filter(Category.slug == cat_data["slug"]).first()
             if not category:
                 category = Category(**cat_data)
                 db.add(category)
-        await db.commit()
+        db.commit()
         logger.info("Categories created.")
 
         # Create Products
         logger.info("Creating products...")
         # Get Women category
-        result = await db.execute(select(Category).filter(Category.slug == "women"))
-        women_cat = result.scalars().first()
+        women_cat = db.query(Category).filter(Category.slug == "women").first()
         
         if women_cat:
             products_data = [
@@ -75,16 +71,15 @@ async def init_db() -> None:
             ]
             
             for prod_data in products_data:
-                result = await db.execute(select(Product).filter(Product.slug == prod_data["slug"]))
-                product = result.scalars().first()
+                product = db.query(Product).filter(Product.slug == prod_data["slug"]).first()
                 if not product:
                     # Create product
                     variants = prod_data.pop("variants")
                     images = prod_data.pop("images")
                     product = Product(**prod_data)
                     db.add(product)
-                    await db.commit()
-                    await db.refresh(product)
+                    db.commit()
+                    db.refresh(product)
                     
                     # Create variants
                     for var_data in variants:
@@ -96,13 +91,15 @@ async def init_db() -> None:
                         image = ProductImage(**img_data, product_id=product.id)
                         db.add(image)
                         
-                    await db.commit()
+                    db.commit()
         logger.info("Products created.")
+    finally:
+        db.close()
 
-async def main() -> None:
+def main() -> None:
     logger.info("Initializing service")
-    await init_db()
+    init_db()
     logger.info("Service finished initializing")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()

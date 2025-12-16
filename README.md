@@ -42,7 +42,7 @@ This will start:
 - **Frontend**: http://localhost:3000
 - **Backend API**: http://localhost:8000
 - **API Documentation**: http://localhost:8000/docs
-- **Database**: PostgreSQL on port 5434
+- **Database**: PostgreSQL on port 5432
 - **Redis**: Port 6380
 - **MinIO**: http://localhost:9002 (Console: http://localhost:9003)
 
