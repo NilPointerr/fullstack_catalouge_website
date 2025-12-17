@@ -178,7 +178,7 @@ npm run dev
 ```
 DATABASE_URL=postgresql://postgres:postgres@db:5432/catalog_db
 REDIS_URL=redis://redis:6379/0
-SECRET_KEY=your-secret-key
+SECRET_KEY=b7fb243c8cf04461f7e99e11dd3bd4ae1418e7dab6338a3c282e0500be70f735
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 ```
 

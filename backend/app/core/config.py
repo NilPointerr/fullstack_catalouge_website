@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Catalog Website API"
     API_V1_STR: str = "/api/v1"
-    SECRET_KEY: str = "supersecretkey"  # Change in production
+    SECRET_KEY: str = "b7fb243c8cf04461f7e99e11dd3bd4ae1418e7dab6338a3c282e0500be70f735"  # Change in production
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     ALGORITHM: str = "HS256"
 
