@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Category } from "@/lib/api";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 interface FilterPanelProps {
     categories: Category[];
@@ -41,6 +41,7 @@ export function FilterPanel({
 }: FilterPanelProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const pathname = usePathname();
 
     const handleCategoryToggle = (categoryId: number) => {
         const newSelected = selectedCategoryIds.includes(categoryId)
@@ -48,7 +49,7 @@ export function FilterPanel({
             : [...selectedCategoryIds, categoryId];
         onCategoryChange(newSelected);
         
-        // Update URL
+        // Update URL - preserve all existing params (including search)
         const params = new URLSearchParams(searchParams.toString());
         if (newSelected.length > 0) {
             const categorySlugs = newSelected
@@ -59,7 +60,9 @@ export function FilterPanel({
         } else {
             params.delete("categories");
         }
-        router.push(`/catalog?${params.toString()}`);
+        // Reset to page 1 when filters change
+        params.delete("page");
+        router.push(`${pathname}?${params.toString()}`);
     };
 
     const handleColorToggle = (color: string) => {
@@ -68,14 +71,16 @@ export function FilterPanel({
             : [...selectedColors, color];
         onColorChange(newSelected);
         
-        // Update URL
+        // Update URL - preserve all existing params (including search)
         const params = new URLSearchParams(searchParams.toString());
         if (newSelected.length > 0) {
             params.set("colors", newSelected.join(','));
         } else {
             params.delete("colors");
         }
-        router.push(`/catalog?${params.toString()}`);
+        // Reset to page 1 when filters change
+        params.delete("page");
+        router.push(`${pathname}?${params.toString()}`);
     };
 
     const handleSizeToggle = (size: string) => {
@@ -84,14 +89,16 @@ export function FilterPanel({
             : [...selectedSizes, size];
         onSizeChange(newSelected);
         
-        // Update URL
+        // Update URL - preserve all existing params (including search)
         const params = new URLSearchParams(searchParams.toString());
         if (newSelected.length > 0) {
             params.set("sizes", newSelected.join(','));
         } else {
             params.delete("sizes");
         }
-        router.push(`/catalog?${params.toString()}`);
+        // Reset to page 1 when filters change
+        params.delete("page");
+        router.push(`${pathname}?${params.toString()}`);
     };
 
     const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -99,10 +106,12 @@ export function FilterPanel({
         const newRange: [number, number] = [priceRange[0], newMax];
         onPriceChange(newRange);
         
-        // Update URL
+        // Update URL - preserve all existing params (including search)
         const params = new URLSearchParams(searchParams.toString());
         params.set("max_price", newMax.toString());
-        router.push(`/catalog?${params.toString()}`);
+        // Reset to page 1 when filters change
+        params.delete("page");
+        router.push(`${pathname}?${params.toString()}`);
     };
 
     const handleClearAll = () => {
@@ -110,7 +119,19 @@ export function FilterPanel({
         onColorChange([]);
         onSizeChange([]);
         onPriceChange([0, 1000]);
-        router.push("/catalog");
+        // Preserve search param if it exists
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete("categories");
+        params.delete("colors");
+        params.delete("sizes");
+        params.delete("max_price");
+        params.delete("page");
+        // If only search param remains, keep it; otherwise go to base catalog
+        if (params.get("search")) {
+            router.push(`${pathname}?${params.toString()}`);
+        } else {
+            router.push(pathname);
+        }
     };
 
     return (
