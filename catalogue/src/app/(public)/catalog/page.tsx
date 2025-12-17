@@ -236,18 +236,18 @@ export default function CatalogPage() {
     };
 
     return (
-        <div className="container py-8">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
+        <div className="container py-8 md:py-12">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-10">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">All Products</h1>
-                    <p className="text-muted-foreground mt-1">
+                    <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-2">All Products</h1>
+                    <p className="text-muted-foreground text-sm md:text-base">
                         {search 
                             ? `Showing results for "${search}"` 
                             : getFilterSummary()}
                     </p>
                 </div>
-                <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" className="md:hidden">
+                <div className="flex items-center gap-3">
+                    <Button variant="outline" size="sm" className="md:hidden shadow-sm hover:shadow-md transition-shadow">
                         <SlidersHorizontal className="mr-2 h-4 w-4" />
                         Filters
                     </Button>
@@ -268,7 +268,7 @@ export default function CatalogPage() {
                             params.delete("page");
                             router.push(`${pathname}?${params.toString()}`);
                         }}
-                        className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-all hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 cursor-pointer"
                     >
                         <option value="featured">Sort by: Featured</option>
                         <option value="price_low">Price: Low to High</option>
@@ -278,34 +278,40 @@ export default function CatalogPage() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] gap-8 lg:gap-12">
                 {/* Sidebar Filters */}
                 <aside className="hidden md:block">
-                    <FilterPanel 
-                        categories={categories}
-                        selectedCategoryIds={selectedCategoryIds}
-                        selectedColors={selectedColors}
-                        selectedSizes={selectedSizes}
-                        priceRange={priceRange}
-                        onCategoryChange={setSelectedCategoryIds}
-                        onColorChange={setSelectedColors}
-                        onSizeChange={setSelectedSizes}
-                        onPriceChange={setPriceRange}
-                    />
+                    <div className="sticky top-24">
+                        <FilterPanel 
+                            categories={categories}
+                            selectedCategoryIds={selectedCategoryIds}
+                            selectedColors={selectedColors}
+                            selectedSizes={selectedSizes}
+                            priceRange={priceRange}
+                            onCategoryChange={setSelectedCategoryIds}
+                            onColorChange={setSelectedColors}
+                            onSizeChange={setSelectedSizes}
+                            onPriceChange={setPriceRange}
+                        />
+                    </div>
                 </aside>
 
                 {/* Product Grid */}
-                <div className="space-y-8">
+                <div className="space-y-10">
                     {isLoading ? (
-                        <div className="text-center py-12">Loading products...</div>
+                        <div className="text-center py-20">
+                            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent"></div>
+                            <p className="mt-4 text-muted-foreground">Loading products...</p>
+                        </div>
                     ) : (
-                        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
                             {products.map((product) => (
                                 <ProductCard key={product.id} product={product} />
                             ))}
                             {products.length === 0 && (
-                                <div className="col-span-full text-center text-muted-foreground">
-                                    No products found.
+                                <div className="col-span-full text-center py-16">
+                                    <p className="text-lg font-medium text-muted-foreground mb-2">No products found</p>
+                                    <p className="text-sm text-muted-foreground">Try adjusting your filters or search terms</p>
                                 </div>
                             )}
                         </div>
@@ -313,13 +319,14 @@ export default function CatalogPage() {
 
                     {/* Pagination */}
                     {totalPages > 1 && (
-                        <div className="flex flex-col items-center gap-4">
-                            <div className="flex items-center justify-center gap-2">
+                        <div className="flex flex-col items-center gap-4 pt-4">
+                            <div className="flex items-center justify-center gap-2 flex-wrap">
                                 <Button 
                                     variant="outline" 
                                     size="sm"
                                     onClick={() => updatePage(currentPage - 1)}
                                     disabled={currentPage === 1 || isLoading}
+                                    className="transition-all hover:shadow-md disabled:hover:shadow-none"
                                 >
                                     <ChevronLeft className="h-4 w-4 mr-1" />
                                     Previous
@@ -328,7 +335,7 @@ export default function CatalogPage() {
                                 {getPageNumbers().map((pageNum, idx) => {
                                     if (pageNum === "...") {
                                         return (
-                                            <span key={`ellipsis-${idx}`} className="px-2 text-muted-foreground">
+                                            <span key={`ellipsis-${idx}`} className="px-3 text-muted-foreground">
                                                 ...
                                             </span>
                                         );
@@ -341,7 +348,7 @@ export default function CatalogPage() {
                                             size="sm"
                                             onClick={() => updatePage(page)}
                                             disabled={isLoading}
-                                            className={currentPage === page ? "" : ""}
+                                            className="transition-all hover:shadow-md disabled:hover:shadow-none min-w-[2.5rem]"
                                         >
                                             {page}
                                         </Button>
@@ -353,6 +360,7 @@ export default function CatalogPage() {
                                     size="sm"
                                     onClick={() => updatePage(currentPage + 1)}
                                     disabled={currentPage === totalPages || isLoading}
+                                    className="transition-all hover:shadow-md disabled:hover:shadow-none"
                                 >
                                     Next
                                     <ChevronRight className="h-4 w-4 ml-1" />

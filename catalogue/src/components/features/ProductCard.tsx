@@ -100,7 +100,7 @@ export function ProductCard({ product, onWishlistChange }: ProductCardProps) {
 
     return (
         <div
-            className="group relative flex flex-col overflow-hidden rounded-lg border bg-card transition-all hover:shadow-lg"
+            className="group relative flex flex-col overflow-hidden rounded-xl border border-border/50 bg-card shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-border"
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
         >
@@ -109,8 +109,8 @@ export function ProductCard({ product, onWishlistChange }: ProductCardProps) {
                     src={mainImage}
                     alt={product.name}
                     className={cn(
-                        "h-full w-full object-cover transition-all duration-500",
-                        isHovered && hoverImage !== mainImage ? "opacity-0" : "opacity-100"
+                        "h-full w-full object-cover transition-all duration-700 ease-out",
+                        isHovered && hoverImage !== mainImage ? "opacity-0 scale-110" : "opacity-100 scale-100"
                     )}
                 />
                 {hoverImage !== mainImage && (
@@ -118,17 +118,17 @@ export function ProductCard({ product, onWishlistChange }: ProductCardProps) {
                         src={hoverImage}
                         alt={product.name}
                         className={cn(
-                            "absolute inset-0 h-full w-full object-cover transition-all duration-500",
-                            isHovered ? "opacity-100 scale-105" : "opacity-0"
+                            "absolute inset-0 h-full w-full object-cover transition-all duration-700 ease-out",
+                            isHovered ? "opacity-100 scale-100" : "opacity-0 scale-110"
                         )}
                     />
                 )}
 
                 {/* Badges */}
-                <div className="absolute left-2 top-2 flex flex-col gap-1">
+                <div className="absolute left-3 top-3 flex flex-col gap-2 z-10">
                     {/* Placeholder for discount/new badges if added to API later */}
                     {!inStock && (
-                        <span className="rounded bg-destructive px-2 py-0.5 text-xs font-bold text-destructive-foreground">
+                        <span className="rounded-md bg-destructive px-2.5 py-1 text-xs font-semibold text-destructive-foreground shadow-md backdrop-blur-sm">
                             OUT OF STOCK
                         </span>
                     )}
@@ -138,32 +138,33 @@ export function ProductCard({ product, onWishlistChange }: ProductCardProps) {
                 <button
                     onClick={handleWishlistToggle}
                     disabled={isLoading}
-                    className="absolute right-2 top-2 rounded-full bg-background/80 p-2 text-foreground backdrop-blur-sm transition-colors hover:bg-background hover:text-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="absolute right-3 top-3 z-10 rounded-full bg-background/90 p-2.5 text-foreground backdrop-blur-md shadow-md transition-all duration-200 hover:bg-background hover:text-red-500 hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                    aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
                 >
-                    <Heart className={cn("h-4 w-4", isWishlisted && "fill-current text-red-500")} />
+                    <Heart className={cn("h-4 w-4 transition-all duration-200", isWishlisted && "fill-current text-red-500 scale-110")} />
                 </button>
 
                 {/* Quick Add (visible on hover) */}
                 <div className={cn(
-                    "absolute bottom-0 left-0 right-0 p-4 transition-transform duration-300",
-                    isHovered ? "translate-y-0" : "translate-y-full"
+                    "absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background/95 via-background/80 to-transparent backdrop-blur-sm transition-all duration-300 ease-out",
+                    isHovered ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"
                 )}>
-                    <Button className="w-full" size="sm" disabled={!inStock}>
+                    <Button className="w-full shadow-md hover:shadow-lg transition-shadow duration-200" size="sm" disabled={!inStock}>
                         Quick Add
                     </Button>
                 </div>
             </Link>
 
-            <div className="flex flex-1 flex-col p-4">
+            <div className="flex flex-1 flex-col p-5">
                 <div className="mb-auto">
                     {/* Brand is not in API yet, hiding or using placeholder */}
-                    {/* <p className="text-xs text-muted-foreground">{product.brand}</p> */}
-                    <Link href={`/product/${product.id}`} className="font-medium hover:underline">
+                    {/* <p className="text-xs text-muted-foreground mb-1">{product.brand}</p> */}
+                    <Link href={`/product/${product.id}`} className="font-semibold text-base leading-tight hover:text-primary transition-colors duration-200 line-clamp-2">
                         {product.name}
                     </Link>
                 </div>
-                <div className="mt-2 flex items-center gap-2">
-                    <span className="font-bold">${(product.base_price ?? 0).toFixed(2)}</span>
+                <div className="mt-3 flex items-center gap-2">
+                    <span className="text-lg font-bold text-foreground">${(product.base_price ?? 0).toFixed(2)}</span>
                     {/* Original price / discount logic would go here if available in API */}
                 </div>
             </div>
