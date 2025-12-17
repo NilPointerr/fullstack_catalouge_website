@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Search, Heart, User, Menu, X, Sun, Moon, LogOut, UserCircle2 } from "lucide-react";
+import { Search, Heart, User, Menu, X, Sun, Moon, LogOut, UserCircle2, Settings } from "lucide-react";
 import { FormEvent, useState } from "react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
@@ -50,6 +50,19 @@ export function Navbar() {
                             {link.name}
                         </Link>
                     ))}
+                    {user?.is_superuser && (
+                        <Link
+                            href="/admin/products"
+                            className={cn(
+                                "text-sm font-medium transition-all duration-200 relative",
+                                pathname?.startsWith("/admin")
+                                    ? "text-foreground after:absolute after:bottom-[-1.5rem] after:left-0 after:right-0 after:h-0.5 after:bg-primary" 
+                                    : "text-muted-foreground hover:text-foreground"
+                            )}
+                        >
+                            Admin
+                        </Link>
+                    )}
                 </nav>
 
                 {/* Actions */}
@@ -118,6 +131,16 @@ export function Navbar() {
                                         <UserCircle2 className="h-4 w-4" />
                                         My Profile
                                     </Link>
+                                    {user?.is_superuser && (
+                                        <Link
+                                            href="/admin/products"
+                                            className="flex items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-accent transition-colors duration-200"
+                                            onClick={() => setIsUserMenuOpen(false)}
+                                        >
+                                            <Settings className="h-4 w-4" />
+                                            Admin Panel
+                                        </Link>
+                                    )}
                                     <button
                                         className="flex w-full items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-accent text-left transition-colors duration-200"
                                         onClick={() => {
@@ -166,6 +189,20 @@ export function Navbar() {
                             {link.name}
                         </Link>
                     ))}
+                    {user?.is_superuser && (
+                        <Link
+                            href="/admin/products"
+                            className={cn(
+                                "block text-sm font-medium py-2 px-2 rounded-md transition-colors duration-200",
+                                pathname?.startsWith("/admin")
+                                    ? "text-foreground bg-accent" 
+                                    : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                            )}
+                            onClick={() => setIsMenuOpen(false)}
+                        >
+                            Admin
+                        </Link>
+                    )}
                 </div>
             )}
         </header>

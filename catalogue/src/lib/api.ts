@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosError, InternalAxiosRequestConfig, AxiosResponse } from 'axios';
 import { useAuthStore } from '@/store/auth-store';
 
 // Get API base URL - use localhost for client-side, backend hostname for server-side
@@ -27,8 +27,6 @@ export const api = axios.create({
         'Content-Type': 'application/json',
     },
 });
-
-import { AxiosError, InternalAxiosRequestConfig, AxiosResponse } from 'axios';
 
 api.interceptors.request.use(
     (config: InternalAxiosRequestConfig) => {
@@ -218,5 +216,20 @@ export const addToWishlist = async (productId: number): Promise<WishlistItem> =>
 
 export const removeFromWishlist = async (productId: number): Promise<WishlistItem> => {
     const response = await api.delete<WishlistItem>(`/wishlist/${productId}`);
+    return response.data;
+};
+
+// Admin product management functions
+export const updateProduct = async (productId: number, formData: FormData): Promise<Product> => {
+    const response = await api.put<Product>(`/products/${productId}`, formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data',
+        },
+    });
+    return response.data;
+};
+
+export const deleteProduct = async (productId: number): Promise<Product> => {
+    const response = await api.delete<Product>(`/products/${productId}`);
     return response.data;
 };

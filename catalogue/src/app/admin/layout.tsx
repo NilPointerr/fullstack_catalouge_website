@@ -32,12 +32,11 @@ export default function AdminLayout({
     useEffect(() => {
         if (!isMounted) return;
 
-        // In a real app, we would check the token validity and role here
-        // For now, simple client-side check
+        // Check authentication and admin status
         if (!isAuthenticated) {
             router.push("/login");
-        } else if (user?.role !== "admin") {
-            // router.push("/"); // Redirect non-admins
+        } else if (!user?.is_superuser) {
+            router.push("/"); // Redirect non-admins
         }
     }, [isMounted, isAuthenticated, user, router]);
 

@@ -335,3 +335,188 @@ async def create_product(
             selectinload(Product.images)
         ).filter(Product.id == db_product.id).first()
         return product
+
+@router.put("/{product_id}", response_model=ProductSchema)
+async def update_product(
+    product_id: int,
+    request: Request,
+    db: Session = Depends(deps.get_db),
+    # File upload fields (for multipart/form-data)
+    name: Optional[str] = Form(None),
+    slug: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
+    base_price: Optional[float] = Form(None),
+    category_id: Optional[int] = Form(None),
+    is_active: Optional[bool] = Form(None),
+    variants: Optional[str] = Form(default='[]'),
+    images: List[UploadFile] = File([]),
+    image_urls: Optional[str] = Form(default='[]'),
+    current_user: User = Depends(deps.get_current_active_superuser),
+) -> Any:
+    """
+    Update product with file upload support for images.
+    
+    Supports multipart/form-data with file uploads.
+    Only provided fields will be updated.
+    """
+    # Get existing product
+    product = db.query(Product).options(
+        selectinload(Product.variants),
+        selectinload(Product.images)
+    ).filter(Product.id == product_id).first()
+    
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    
+    # Check if using file upload (multipart/form-data)
+    content_type = request.headers.get("content-type", "")
+    if "multipart/form-data" in content_type or images or name is not None:
+        # Using form data with file uploads
+        # Update fields if provided
+        if name is not None:
+            product.name = name
+        if slug is not None:
+            product.slug = slug
+        if description is not None:
+            product.description = description
+        if base_price is not None:
+            product.base_price = base_price
+        if category_id is not None:
+            product.category_id = category_id
+        if is_active is not None:
+            product.is_active = is_active
+        
+        db.add(product)
+        db.commit()
+        
+        # Handle variants update if provided
+        if variants and variants.strip() and variants.strip() != '[]':
+            try:
+                parsed = json.loads(variants)
+                if isinstance(parsed, list):
+                    # Delete existing variants
+                    db.query(ProductVariant).filter(ProductVariant.product_id == product_id).delete()
+                    # Create new variants
+                    for variant_data in parsed:
+                        db_variant = ProductVariant(
+                            sku=variant_data.get("sku"),
+                            size=variant_data.get("size"),
+                            color=variant_data.get("color"),
+                            stock_quantity=variant_data.get("stock_quantity", 0),
+                            price_override=variant_data.get("price_override"),
+                            product_id=product_id
+                        )
+                        db.add(db_variant)
+            except (json.JSONDecodeError, ValueError):
+                pass  # Ignore invalid JSON
+        
+        # Handle image uploads
+        if images:
+            uploaded_image_paths = await save_multiple_files(images)
+            for idx, image_path in enumerate(uploaded_image_paths):
+                # Check if we should set as primary (if no existing primary images)
+                existing_primary = db.query(ProductImage).filter(
+                    ProductImage.product_id == product_id,
+                    ProductImage.is_primary == True
+                ).first()
+                is_primary = (not existing_primary and idx == 0)
+                
+                db_image = ProductImage(
+                    image_url=image_path,
+                    is_primary=is_primary,
+                    product_id=product_id
+                )
+                db.add(db_image)
+        
+        # Handle image URLs if provided
+        if image_urls and image_urls.strip() and image_urls.strip() != '[]':
+            try:
+                parsed = json.loads(image_urls)
+                if isinstance(parsed, list):
+                    for url_data in parsed:
+                        if isinstance(url_data, str):
+                            existing_primary = db.query(ProductImage).filter(
+                                ProductImage.product_id == product_id,
+                                ProductImage.is_primary == True
+                            ).first()
+                            db_image = ProductImage(
+                                image_url=url_data,
+                                is_primary=not existing_primary,
+                                product_id=product_id
+                            )
+                        elif isinstance(url_data, dict):
+                            existing_primary = db.query(ProductImage).filter(
+                                ProductImage.product_id == product_id,
+                                ProductImage.is_primary == True
+                            ).first()
+                            db_image = ProductImage(
+                                image_url=url_data.get("image_url", ""),
+                                is_primary=url_data.get("is_primary", False) or (not existing_primary),
+                                product_id=product_id
+                            )
+                        db.add(db_image)
+            except (json.JSONDecodeError, ValueError):
+                pass
+        
+        db.commit()
+        
+        # Refresh with relations
+        updated_product = db.query(Product).options(
+            selectinload(Product.variants),
+            selectinload(Product.images)
+        ).filter(Product.id == product_id).first()
+        return updated_product
+    
+    else:
+        # Try to parse JSON body
+        try:
+            body = await request.json()
+            product_in = ProductUpdate(**body)
+        except Exception:
+            raise HTTPException(
+                status_code=400, 
+                detail="Product data required. Use multipart/form-data for file uploads or JSON body."
+            )
+        
+        # Update product fields
+        update_data = product_in.dict(exclude_unset=True, exclude={"variants", "images"})
+        for field, value in update_data.items():
+            setattr(product, field, value)
+        
+        db.add(product)
+        db.commit()
+        db.refresh(product)
+        
+        # Refresh with relations
+        updated_product = db.query(Product).options(
+            selectinload(Product.variants),
+            selectinload(Product.images)
+        ).filter(Product.id == product_id).first()
+        return updated_product
+
+@router.delete("/{product_id}", response_model=ProductSchema)
+def delete_product(
+    *,
+    db: Session = Depends(deps.get_db),
+    product_id: int,
+    current_user: User = Depends(deps.get_current_active_superuser),
+) -> Any:
+    """
+    Delete a product.
+    """
+    product = db.query(Product).options(
+        selectinload(Product.variants),
+        selectinload(Product.images)
+    ).filter(Product.id == product_id).first()
+    
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    
+    # Store product data before deletion
+    result = product
+    
+    # Delete product (cascade will handle variants and images)
+    db.delete(product)
+    db.commit()
+    
+    return result
