@@ -119,16 +119,36 @@ export interface ProductFilters {
     maxPrice?: number;
     colors?: string[];
     sizes?: string[];
+    sortBy?: string;
+}
+
+export interface PaginatedResponse<T> {
+    items: T[];
+    total: number;
+    page: number;
+    size: number;
+    pages: number;
+}
+
+export interface SearchProductsOptions extends ProductFilters {
+    page?: number;
+    size?: number;
 }
 
 export const searchProducts = async (
     query?: string, 
     categoryId?: number,
-    filters?: ProductFilters
-): Promise<Product[]> => {
+    filters?: ProductFilters,
+    page?: number,
+    size?: number
+): Promise<PaginatedResponse<Product>> => {
     const params: any = {};
     if (query) params.search = query;
     if (categoryId) params.category_id = categoryId;
+    
+    // Pagination parameters
+    if (page !== undefined) params.page = page;
+    if (size !== undefined) params.page_size = size;
     
     // Apply new filters
     if (filters) {
@@ -143,10 +163,23 @@ export const searchProducts = async (
         if (filters.sizes && filters.sizes.length > 0) {
             params.size = filters.sizes[0]; // Backend currently supports single size
         }
+        if (filters.sortBy) {
+            params.sort_by = filters.sortBy;
+        }
     }
     
-    const response = await api.get<Product[]>('/products', { params });
+    const response = await api.get<PaginatedResponse<Product>>('/products', { params });
     return response.data;
+};
+
+// Backward compatibility: get products as array (uses first page, default size)
+export const searchProductsArray = async (
+    query?: string, 
+    categoryId?: number,
+    filters?: ProductFilters
+): Promise<Product[]> => {
+    const result = await searchProducts(query, categoryId, filters, 1, 100);
+    return result.items;
 };
 
 export const getProduct = async (id: string | number): Promise<Product> => {

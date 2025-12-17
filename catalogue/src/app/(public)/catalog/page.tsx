@@ -1,20 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import React, { useEffect, useState, useRef } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { FilterPanel } from "@/components/features/FilterPanel";
 import { ProductCard } from "@/components/features/ProductCard";
 import { Button } from "@/components/ui/button";
-import { SlidersHorizontal } from "lucide-react";
+import { SlidersHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
 import { searchProducts, Product, getCategories, Category, ProductFilters } from "@/lib/api";
+
+const ITEMS_PER_PAGE = 12;
 
 export default function CatalogPage() {
     const searchParams = useSearchParams();
+    const router = useRouter();
+    const pathname = usePathname();
     const search = searchParams.get("search") || "";
     const categoriesParam = searchParams.get("categories") || "";
+    const categoryParam = searchParams.get("category") || ""; // Support singular 'category' param
     const colorsParam = searchParams.get("colors") || "";
     const sizesParam = searchParams.get("sizes") || "";
     const maxPriceParam = searchParams.get("max_price");
+    const pageParam = searchParams.get("page");
+    const sortParam = searchParams.get("sort") || "featured";
     
     const [products, setProducts] = useState<Product[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
@@ -22,15 +29,25 @@ export default function CatalogPage() {
     const [selectedColors, setSelectedColors] = useState<string[]>([]);
     const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
     const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000]);
+    const [sortBy, setSortBy] = useState<string>(sortParam);
     const [isLoading, setIsLoading] = useState(true);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalItems, setTotalItems] = useState(0);
+    const isInitialized = useRef(false);
 
     // Initialize filters from URL params
     useEffect(() => {
-        // Parse categories from URL
-        if (categoriesParam) {
-            const categorySlugs = categoriesParam.split(',').map(s => s.trim());
-            // We'll set the IDs after categories are loaded
+        // Parse page from URL
+        if (pageParam) {
+            const page = parseInt(pageParam);
+            if (!isNaN(page) && page > 0) {
+                setCurrentPage(page);
+            }
         }
+        
+        // Parse sort from URL
+        setSortBy(sortParam);
         
         // Parse colors from URL
         if (colorsParam) {
@@ -51,29 +68,54 @@ export default function CatalogPage() {
         }
     }, []);
 
-    // Fetch categories
+    // Fetch categories and set selected category IDs from URL
     useEffect(() => {
         const fetchCategories = async () => {
             try {
                 const data = await getCategories();
                 setCategories(data);
                 
+                // Determine which category slugs to use
+                // Support both 'category' (singular) and 'categories' (plural) params
+                let categorySlugs: string[] = [];
+                let shouldNormalizeUrl = false;
+                
+                if (categoryParam) {
+                    // If 'category' param exists, use it (convert to array)
+                    categorySlugs = [categoryParam.trim().toLowerCase()];
+                    shouldNormalizeUrl = true;
+                } else if (categoriesParam) {
+                    // Use 'categories' param (comma-separated)
+                    categorySlugs = categoriesParam.split(',').map(s => s.trim().toLowerCase());
+                }
+                
                 // Set category IDs from URL slugs
-                if (categoriesParam) {
-                    const categorySlugs = categoriesParam.split(',').map(s => s.trim().toLowerCase());
+                if (categorySlugs.length > 0) {
                     const matchingCategories = data.filter(c => 
                         categorySlugs.includes(c.slug.toLowerCase())
                     );
-                    setSelectedCategoryIds(matchingCategories.map(c => c.id));
+                    const categoryIds = matchingCategories.map(c => c.id);
+                    setSelectedCategoryIds(categoryIds);
+                    
+                    // Normalize URL if needed (convert 'category' to 'categories')
+                    if (shouldNormalizeUrl && categoryIds.length > 0) {
+                        const params = new URLSearchParams(searchParams.toString());
+                        params.delete("category");
+                        params.set("categories", categorySlugs[0]);
+                        // Update URL without causing a reload
+                        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+                    }
+                } else {
+                    setSelectedCategoryIds([]);
                 }
             } catch (error) {
                 console.error("Failed to fetch categories:", error);
             }
         };
         fetchCategories();
-    }, [categoriesParam]);
+    }, [categoryParam, categoriesParam]);
 
-    // Fetch products with filters
+    // Fetch products with filters and pagination
     useEffect(() => {
         const fetchProducts = async () => {
             setIsLoading(true);
@@ -84,19 +126,58 @@ export default function CatalogPage() {
                     sizes: selectedSizes.length > 0 ? selectedSizes : undefined,
                     minPrice: priceRange[0] > 0 ? priceRange[0] : undefined,
                     maxPrice: priceRange[1] < 1000 ? priceRange[1] : undefined,
+                    sortBy: sortBy !== "featured" ? sortBy : undefined,
                 };
                 
-                const data = await searchProducts(search || undefined, undefined, filters);
-                setProducts(data);
+                const data = await searchProducts(
+                    search || undefined, 
+                    undefined, 
+                    filters,
+                    currentPage,
+                    ITEMS_PER_PAGE
+                );
+                setProducts(data.items);
+                setTotalPages(data.pages);
+                setTotalItems(data.total);
             } catch (error) {
                 console.error("Failed to fetch products:", error);
+                setProducts([]);
+                setTotalPages(1);
+                setTotalItems(0);
             } finally {
                 setIsLoading(false);
             }
         };
 
         fetchProducts();
-    }, [search, selectedCategoryIds, selectedColors, selectedSizes, priceRange]);
+    }, [search, selectedCategoryIds, selectedColors, selectedSizes, priceRange, currentPage, sortBy]);
+
+    // Mark as initialized after first render
+    useEffect(() => {
+        isInitialized.current = true;
+    }, []);
+
+    // Reset to page 1 when filters change (except page itself)
+    // Only reset after initialization (not on initial load from URL)
+    useEffect(() => {
+        if (isInitialized.current && currentPage !== 1) {
+            setCurrentPage(1);
+        }
+    }, [search, selectedCategoryIds, selectedColors, selectedSizes, priceRange, sortBy]);
+
+    // Update URL when page changes
+    const updatePage = (newPage: number) => {
+        if (newPage < 1 || newPage > totalPages) return;
+        
+        setCurrentPage(newPage);
+        const params = new URLSearchParams(searchParams.toString());
+        if (newPage === 1) {
+            params.delete("page");
+        } else {
+            params.set("page", newPage.toString());
+        }
+        router.push(`${pathname}?${params.toString()}`);
+    };
 
     const getFilterSummary = () => {
         const parts: string[] = [];
@@ -108,9 +189,50 @@ export default function CatalogPage() {
             parts.push(categoryNames);
         }
         if (parts.length === 0) {
-            return `Showing ${products.length} products`;
+            const start = totalItems === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1;
+            const end = Math.min(currentPage * ITEMS_PER_PAGE, totalItems);
+            return `Showing ${start}-${end} of ${totalItems} products`;
         }
-        return `Showing ${products.length} products in ${parts.join(', ')}`;
+        const start = totalItems === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1;
+        const end = Math.min(currentPage * ITEMS_PER_PAGE, totalItems);
+        return `Showing ${start}-${end} of ${totalItems} products in ${parts.join(', ')}`;
+    };
+
+    // Generate page numbers for pagination
+    const getPageNumbers = () => {
+        const pages: (number | string)[] = [];
+        const maxVisible = 5;
+        
+        if (totalPages <= maxVisible) {
+            // Show all pages if total is less than max visible
+            for (let i = 1; i <= totalPages; i++) {
+                pages.push(i);
+            }
+        } else {
+            // Always show first page
+            pages.push(1);
+            
+            if (currentPage > 3) {
+                pages.push("...");
+            }
+            
+            // Show pages around current page
+            const start = Math.max(2, currentPage - 1);
+            const end = Math.min(totalPages - 1, currentPage + 1);
+            
+            for (let i = start; i <= end; i++) {
+                pages.push(i);
+            }
+            
+            if (currentPage < totalPages - 2) {
+                pages.push("...");
+            }
+            
+            // Always show last page
+            pages.push(totalPages);
+        }
+        
+        return pages;
     };
 
     return (
@@ -129,11 +251,29 @@ export default function CatalogPage() {
                         <SlidersHorizontal className="mr-2 h-4 w-4" />
                         Filters
                     </Button>
-                    <select className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-                        <option>Sort by: Featured</option>
-                        <option>Price: Low to High</option>
-                        <option>Price: High to Low</option>
-                        <option>Newest Arrivals</option>
+                    <select 
+                        value={sortBy}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                            const newSort = e.target.value;
+                            setSortBy(newSort);
+                            
+                            // Update URL
+                            const params = new URLSearchParams(searchParams.toString());
+                            if (newSort === "featured") {
+                                params.delete("sort");
+                            } else {
+                                params.set("sort", newSort);
+                            }
+                            // Reset to page 1 when sort changes
+                            params.delete("page");
+                            router.push(`${pathname}?${params.toString()}`);
+                        }}
+                        className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    >
+                        <option value="featured">Sort by: Featured</option>
+                        <option value="price_low">Price: Low to High</option>
+                        <option value="price_high">Price: High to Low</option>
+                        <option value="newest">Newest Arrivals</option>
                     </select>
                 </div>
             </div>
@@ -172,13 +312,57 @@ export default function CatalogPage() {
                     )}
 
                     {/* Pagination */}
-                    <div className="flex justify-center gap-2">
-                        <Button variant="outline" disabled>Previous</Button>
-                        <Button variant="outline" className="bg-primary text-primary-foreground">1</Button>
-                        <Button variant="outline">2</Button>
-                        <Button variant="outline">3</Button>
-                        <Button variant="outline">Next</Button>
-                    </div>
+                    {totalPages > 1 && (
+                        <div className="flex flex-col items-center gap-4">
+                            <div className="flex items-center justify-center gap-2">
+                                <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => updatePage(currentPage - 1)}
+                                    disabled={currentPage === 1 || isLoading}
+                                >
+                                    <ChevronLeft className="h-4 w-4 mr-1" />
+                                    Previous
+                                </Button>
+                                
+                                {getPageNumbers().map((pageNum, idx) => {
+                                    if (pageNum === "...") {
+                                        return (
+                                            <span key={`ellipsis-${idx}`} className="px-2 text-muted-foreground">
+                                                ...
+                                            </span>
+                                        );
+                                    }
+                                    const page = pageNum as number;
+                                    return (
+                                        <Button
+                                            key={page}
+                                            variant={currentPage === page ? "default" : "outline"}
+                                            size="sm"
+                                            onClick={() => updatePage(page)}
+                                            disabled={isLoading}
+                                            className={currentPage === page ? "" : ""}
+                                        >
+                                            {page}
+                                        </Button>
+                                    );
+                                })}
+                                
+                                <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => updatePage(currentPage + 1)}
+                                    disabled={currentPage === totalPages || isLoading}
+                                >
+                                    Next
+                                    <ChevronRight className="h-4 w-4 ml-1" />
+                                </Button>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                                Page {currentPage} of {totalPages}
+                            </p>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

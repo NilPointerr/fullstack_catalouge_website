@@ -1,21 +1,26 @@
 from typing import Any, List, Optional, Union
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form, Request
 from sqlalchemy.orm import Session, selectinload
+from sqlalchemy import func
 import json
+import math
 
 from app.api import deps
 from app.models.product import Product, ProductVariant, ProductImage
 from app.models.user import User
 from app.schemas.product import Product as ProductSchema, ProductCreate, ProductUpdate
+from app.schemas.pagination import PaginatedResponse
 from app.core.file_upload import save_multiple_files
 
 router = APIRouter()
 
-@router.get("/", response_model=List[ProductSchema])
+@router.get("/", response_model=PaginatedResponse[ProductSchema])
 def read_products(
     db: Session = Depends(deps.get_db),
-    skip: int = 0,
-    limit: int = 100,
+    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
+    page_size: int = Query(12, ge=1, le=100, description="Number of items per page"),
+    skip: Optional[int] = Query(None, description="Offset (for backward compatibility, deprecated)"),
+    limit: Optional[int] = Query(None, description="Limit (for backward compatibility, deprecated)"),
     category_id: Optional[int] = None,
     category_ids: Optional[str] = None,  # Comma-separated category IDs
     search: Optional[str] = None,
@@ -23,11 +28,14 @@ def read_products(
     max_price: Optional[float] = None,
     color: Optional[str] = None,
     size: Optional[str] = None,
+    sort_by: Optional[str] = Query(None, description="Sort order: 'featured', 'price_low', 'price_high', 'newest'"),
 ) -> Any:
     """
-    Retrieve products with filtering.
+    Retrieve products with filtering, sorting, and pagination.
     
     Supports:
+    - page: Page number (default: 1)
+    - page_size: Items per page (default: 12, max: 100)
     - category_id: Single category ID (for backward compatibility)
     - category_ids: Comma-separated category IDs (e.g., "1,2,3")
     - search: Search by product name
@@ -35,10 +43,19 @@ def read_products(
     - max_price: Maximum price filter
     - color: Filter by variant color
     - size: Filter by variant size
+    - sort_by: Sort order - 'featured' (default/id), 'price_low', 'price_high', 'newest'
     """
     from sqlalchemy import or_, and_
     
-    query = db.query(Product).options(
+    # Handle backward compatibility with skip/limit
+    if skip is not None or limit is not None:
+        if skip is not None:
+            page = (skip // (limit or page_size)) + 1
+        if limit is not None:
+            page_size = limit
+    
+    # Build base query
+    base_query = db.query(Product).options(
         selectinload(Product.variants),
         selectinload(Product.images)
     )
@@ -49,36 +66,62 @@ def read_products(
         try:
             cat_ids = [int(cid.strip()) for cid in category_ids.split(",") if cid.strip()]
             if cat_ids:
-                query = query.filter(Product.category_id.in_(cat_ids))
+                base_query = base_query.filter(Product.category_id.in_(cat_ids))
         except ValueError:
             pass
     elif category_id:
-        query = query.filter(Product.category_id == category_id)
+        base_query = base_query.filter(Product.category_id == category_id)
         
     if search:
-        query = query.filter(Product.name.ilike(f"%{search}%"))
+        base_query = base_query.filter(Product.name.ilike(f"%{search}%"))
     
     # Price filtering
     if min_price is not None:
-        query = query.filter(Product.base_price >= min_price)
+        base_query = base_query.filter(Product.base_price >= min_price)
     if max_price is not None:
-        query = query.filter(Product.base_price <= max_price)
+        base_query = base_query.filter(Product.base_price <= max_price)
     
     # Color and size filtering (via variants)
     if color or size:
         # Join with variants for color/size filtering
-        query = query.join(ProductVariant)
+        base_query = base_query.join(ProductVariant)
         
         if color:
-            query = query.filter(ProductVariant.color.ilike(f"%{color}%"))
+            base_query = base_query.filter(ProductVariant.color.ilike(f"%{color}%"))
         if size:
-            query = query.filter(ProductVariant.size.ilike(f"%{size}%"))
+            base_query = base_query.filter(ProductVariant.size.ilike(f"%{size}%"))
         
         # Use distinct to avoid duplicate products when multiple variants match
-        query = query.distinct()
-        
-    products = query.offset(skip).limit(limit).all()
-    return products
+        base_query = base_query.distinct()
+    
+    # Apply sorting
+    if sort_by == "price_low":
+        base_query = base_query.order_by(Product.base_price.asc())
+    elif sort_by == "price_high":
+        base_query = base_query.order_by(Product.base_price.desc())
+    elif sort_by == "newest":
+        base_query = base_query.order_by(Product.created_at.desc())
+    else:
+        # Default: featured (sort by id, which typically reflects creation/featured order)
+        base_query = base_query.order_by(Product.id.asc())
+    
+    # Get total count
+    total = base_query.count()
+    
+    # Calculate pagination
+    skip_count = (page - 1) * page_size
+    pages = math.ceil(total / page_size) if total > 0 else 0
+    
+    # Get paginated results
+    products = base_query.offset(skip_count).limit(page_size).all()
+    
+    return PaginatedResponse(
+        items=products,
+        total=total,
+        page=page,
+        size=page_size,
+        pages=pages
+    )
 
 @router.get("/{product_id}", response_model=ProductSchema)
 def read_product(
