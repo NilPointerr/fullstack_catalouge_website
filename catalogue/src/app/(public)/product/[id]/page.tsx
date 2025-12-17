@@ -2,10 +2,10 @@
 
 import { ProductGallery } from "@/components/features/ProductGallery";
 import { Button } from "@/components/ui/button";
-import { Heart, Share2, Truck, ShieldCheck } from "lucide-react";
+import { Heart, Share2, Truck, ShieldCheck, ArrowLeft } from "lucide-react";
 import { ProductCard } from "@/components/features/ProductCard";
 import { useEffect, useState } from "react";
-import { getProduct, searchProducts, Product, addToWishlist, removeFromWishlist, getWishlist } from "@/lib/api";
+import { getProduct, searchProductsArray, Product, addToWishlist, removeFromWishlist, getWishlist } from "@/lib/api";
 import { useParams, useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
 import { cn } from "@/lib/utils";
@@ -28,7 +28,7 @@ export default function ProductPage() {
             try {
                 const [productData, allProducts] = await Promise.all([
                     getProduct(id),
-                    searchProducts("")
+                    searchProductsArray("")
                 ]);
                 setProduct(productData);
                 // Filter out current product and take 4
@@ -105,12 +105,32 @@ export default function ProductPage() {
         return `${backendUrl}${url.startsWith('/') ? url : '/' + url}`;
     };
     
-    const imageUrls = product.images.length > 0 
-        ? product.images.map(img => getImageUrl(img.image_url))
+    // Sort images: primary first, then others
+    const sortedImages = product.images.length > 0
+        ? [...product.images].sort((a, b) => {
+            if (a.is_primary) return -1;
+            if (b.is_primary) return 1;
+            return 0;
+        })
+        : [];
+    
+    const imageUrls = sortedImages.length > 0 
+        ? sortedImages.map(img => getImageUrl(img.image_url))
         : ["https://placehold.co/600x800?text=No+Image"];
 
     return (
         <div className="container py-8 md:py-12">
+            {/* Back Button - Mobile */}
+            <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.back()}
+                className="mb-6 md:hidden -ml-2"
+            >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back
+            </Button>
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
                 {/* Gallery */}
                 <ProductGallery images={imageUrls} />
@@ -122,7 +142,7 @@ export default function ProductPage() {
                         {/* <h2 className="text-lg font-medium text-muted-foreground">{product.brand}</h2> */}
                         <h1 className="text-3xl font-bold tracking-tight">{product.name}</h1>
                         <div className="mt-4 flex items-end gap-4">
-                            <span className="text-3xl font-bold">${(product.base_price ?? 0).toFixed(2)}</span>
+                            <span className="text-3xl font-bold">₹{(product.base_price ?? 0).toFixed(2)}</span>
                             {/* Original price / discount logic if available */}
                         </div>
                     </div>
@@ -170,7 +190,7 @@ export default function ProductPage() {
                     <div className="grid grid-cols-2 gap-4 text-sm">
                         <div className="flex items-center gap-2">
                             <Truck className="h-4 w-4 text-muted-foreground" />
-                            <span>Free Shipping over $100</span>
+                            <span>Free Shipping over ₹5000</span>
                         </div>
                         <div className="flex items-center gap-2">
                             <ShieldCheck className="h-4 w-4 text-muted-foreground" />

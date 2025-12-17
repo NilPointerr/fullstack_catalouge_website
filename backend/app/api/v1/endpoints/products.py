@@ -115,6 +115,11 @@ def read_products(
     # Get paginated results
     products = base_query.offset(skip_count).limit(page_size).all()
     
+    # Sort images: primary first for each product
+    for product in products:
+        if product.images:
+            product.images.sort(key=lambda img: (not img.is_primary, img.id))
+    
     return PaginatedResponse(
         items=products,
         total=total,
@@ -122,6 +127,31 @@ def read_products(
         size=page_size,
         pages=pages
     )
+
+@router.get("/trending", response_model=List[ProductSchema])
+def get_trending_products(
+    db: Session = Depends(deps.get_db),
+    limit: int = Query(4, ge=1, le=20, description="Number of trending products to return"),
+) -> Any:
+    """
+    Get trending products (newest active products).
+    Returns the most recently created active products.
+    """
+    products = db.query(Product).options(
+        selectinload(Product.variants),
+        selectinload(Product.images)
+    ).filter(
+        Product.is_active == True
+    ).order_by(
+        Product.created_at.desc()
+    ).limit(limit).all()
+    
+    # Sort images: primary first for each product
+    for product in products:
+        if product.images:
+            product.images.sort(key=lambda img: (not img.is_primary, img.id))
+    
+    return products
 
 @router.get("/{product_id}", response_model=ProductSchema)
 def read_product(
@@ -139,6 +169,11 @@ def read_product(
     
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
+    
+    # Sort images: primary first
+    if product.images:
+        product.images.sort(key=lambda img: (not img.is_primary, img.id))
+    
     return product
 
 @router.post("/", response_model=ProductSchema)
@@ -297,6 +332,11 @@ async def create_product(
             selectinload(Product.variants),
             selectinload(Product.images)
         ).filter(Product.id == db_product.id).first()
+        
+        # Sort images: primary first
+        if product and product.images:
+            product.images.sort(key=lambda img: (not img.is_primary, img.id))
+        
         return product
     
     else:
@@ -334,6 +374,11 @@ async def create_product(
             selectinload(Product.variants),
             selectinload(Product.images)
         ).filter(Product.id == db_product.id).first()
+        
+        # Sort images: primary first
+        if product and product.images:
+            product.images.sort(key=lambda img: (not img.is_primary, img.id))
+        
         return product
 
 @router.put("/{product_id}", response_model=ProductSchema)
@@ -410,15 +455,96 @@ async def update_product(
             except (json.JSONDecodeError, ValueError):
                 pass  # Ignore invalid JSON
         
-        # Handle image uploads
+        # Handle image management: delete images not in the keep list, then add new ones
+        # Only process image_urls if explicitly provided (not empty and not just empty array)
+        if image_urls and image_urls.strip() and image_urls.strip() != '[]' and image_urls.strip() != '':
+            try:
+                parsed = json.loads(image_urls)
+                if isinstance(parsed, list) and len(parsed) > 0:
+                    # Get URLs to keep
+                    urls_to_keep = []
+                    for url_data in parsed:
+                        if isinstance(url_data, str) and url_data.strip():
+                            urls_to_keep.append(url_data.strip())
+                        elif isinstance(url_data, dict):
+                            img_url = url_data.get("image_url", "").strip()
+                            if img_url:
+                                urls_to_keep.append(img_url)
+                    
+                    # Delete images that are not in the keep list
+                    if urls_to_keep:
+                        existing_images = db.query(ProductImage).filter(
+                            ProductImage.product_id == product_id
+                        ).all()
+                        for existing_img in existing_images:
+                            # Check if this image URL should be kept
+                            should_keep = False
+                            existing_url = existing_img.image_url.strip()
+                            
+                            for keep_url in urls_to_keep:
+                                # Normalize URLs for comparison (handle both full and relative paths)
+                                # Compare exact match, or if one ends with the other
+                                if (existing_url == keep_url or 
+                                    existing_url.endswith(keep_url) or 
+                                    keep_url.endswith(existing_url) or
+                                    existing_url in keep_url or
+                                    keep_url in existing_url):
+                                    should_keep = True
+                                    break
+                            
+                            if not should_keep:
+                                db.delete(existing_img)
+                    
+                    # Update primary status for kept images
+                    has_primary = False
+                    for url_data in parsed:
+                        if isinstance(url_data, dict) and url_data.get("is_primary", False):
+                            # Find and update the image
+                            img_url = url_data.get("image_url", "").strip()
+                            if img_url:
+                                # Try exact match first
+                                existing_img = db.query(ProductImage).filter(
+                                    ProductImage.product_id == product_id,
+                                    ProductImage.image_url == img_url
+                                ).first()
+                                
+                                # If not found, try partial match
+                                if not existing_img:
+                                    existing_images = db.query(ProductImage).filter(
+                                        ProductImage.product_id == product_id
+                                    ).all()
+                                    for img in existing_images:
+                                        if img_url in img.image_url or img.image_url in img_url:
+                                            existing_img = img
+                                            break
+                                
+                                if existing_img:
+                                    existing_img.is_primary = True
+                                    has_primary = True
+                                    db.add(existing_img)
+                    
+                    # If no primary was set, set first kept image as primary
+                    if not has_primary:
+                        first_img = db.query(ProductImage).filter(
+                            ProductImage.product_id == product_id
+                        ).first()
+                        if first_img:
+                            first_img.is_primary = True
+                            db.add(first_img)
+            except (json.JSONDecodeError, ValueError) as e:
+                print(f"Error parsing image_urls: {e}")
+        
+        # Handle new image uploads
         if images:
             uploaded_image_paths = await save_multiple_files(images)
+            # Check if there's already a primary image
+            existing_primary = db.query(ProductImage).filter(
+                ProductImage.product_id == product_id,
+                ProductImage.is_primary == True
+            ).first()
+            
             for idx, image_path in enumerate(uploaded_image_paths):
-                # Check if we should set as primary (if no existing primary images)
-                existing_primary = db.query(ProductImage).filter(
-                    ProductImage.product_id == product_id,
-                    ProductImage.is_primary == True
-                ).first()
+                # Set first uploaded image as primary if no primary exists
                 is_primary = (not existing_primary and idx == 0)
                 
                 db_image = ProductImage(
@@ -428,36 +554,6 @@ async def update_product(
                 )
                 db.add(db_image)
         
-        # Handle image URLs if provided
-        if image_urls and image_urls.strip() and image_urls.strip() != '[]':
-            try:
-                parsed = json.loads(image_urls)
-                if isinstance(parsed, list):
-                    for url_data in parsed:
-                        if isinstance(url_data, str):
-                            existing_primary = db.query(ProductImage).filter(
-                                ProductImage.product_id == product_id,
-                                ProductImage.is_primary == True
-                            ).first()
-                            db_image = ProductImage(
-                                image_url=url_data,
-                                is_primary=not existing_primary,
-                                product_id=product_id
-                            )
-                        elif isinstance(url_data, dict):
-                            existing_primary = db.query(ProductImage).filter(
-                                ProductImage.product_id == product_id,
-                                ProductImage.is_primary == True
-                            ).first()
-                            db_image = ProductImage(
-                                image_url=url_data.get("image_url", ""),
-                                is_primary=url_data.get("is_primary", False) or (not existing_primary),
-                                product_id=product_id
-                            )
-                        db.add(db_image)
-            except (json.JSONDecodeError, ValueError):
-                pass
-        
         db.commit()
         
         # Refresh with relations
@@ -465,6 +561,11 @@ async def update_product(
             selectinload(Product.variants),
             selectinload(Product.images)
         ).filter(Product.id == product_id).first()
+        
+        # Sort images: primary first
+        if updated_product and updated_product.images:
+            updated_product.images.sort(key=lambda img: (not img.is_primary, img.id))
+        
         return updated_product
     
     else:
@@ -492,6 +593,11 @@ async def update_product(
             selectinload(Product.variants),
             selectinload(Product.images)
         ).filter(Product.id == product_id).first()
+        
+        # Sort images: primary first
+        if updated_product and updated_product.images:
+            updated_product.images.sort(key=lambda img: (not img.is_primary, img.id))
+        
         return updated_product
 
 @router.delete("/{product_id}", response_model=ProductSchema)

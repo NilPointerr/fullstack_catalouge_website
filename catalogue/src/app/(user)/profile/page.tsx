@@ -7,6 +7,7 @@ import { useAuthStore } from "@/store/auth-store";
 import { useEffect, useState } from "react";
 import { getProfile, updateProfile, UserUpdateData } from "@/lib/api";
 import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 
 export default function ProfilePage() {
     const { user, setUser, logout } = useAuthStore();
@@ -85,6 +86,17 @@ export default function ProfilePage() {
 
     return (
         <div className="container max-w-2xl py-8 md:py-12">
+            {/* Back Button - Mobile */}
+            <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.back()}
+                className="mb-6 md:hidden -ml-2"
+            >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back
+            </Button>
+            
             <div className="space-y-6">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Profile Settings</h1>

@@ -1,9 +1,25 @@
 /* eslint-disable @next/next/no-img-element */
-import { MapPin, Clock, Phone, Mail } from "lucide-react";
+"use client";
+
+import { MapPin, Clock, Phone, Mail, ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 
 export default function ShowroomPage() {
+    const router = useRouter();
+    
     return (
         <div className="container py-8 md:py-12 space-y-12">
+            {/* Back Button - Mobile */}
+            <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.back()}
+                className="mb-6 md:hidden -ml-2"
+            >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back
+            </Button>
             <div className="text-center max-w-2xl mx-auto space-y-4">
                 <h1 className="text-4xl font-bold tracking-tight">Visit Our Showroom</h1>
                 <p className="text-lg text-muted-foreground">

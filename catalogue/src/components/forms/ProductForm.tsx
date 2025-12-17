@@ -31,8 +31,10 @@ interface ImageFile {
 }
 
 interface ExistingImage {
+    id?: number;
     url: string;
     isPrimary: boolean;
+    image_url?: string;
 }
 
 export function ProductForm({ productId, initialData }: ProductFormProps) {
@@ -66,7 +68,9 @@ export function ProductForm({ productId, initialData }: ProductFormProps) {
                     ? imageUrl 
                     : `${getBackendBaseURL()}${imageUrl}`;
                 return {
+                    id: img.id,
                     url: fullUrl,
+                    image_url: imageUrl,
                     isPrimary: img.is_primary || false
                 };
             });
@@ -114,6 +118,26 @@ export function ProductForm({ productId, initialData }: ProductFormProps) {
         }
         uploadFormData.append("is_active", is_active.toString());
         uploadFormData.append("variants", variants);
+
+        // Append existing images to keep (for edit mode)
+        if (isEditMode && existingImages.length > 0) {
+            const imagesToKeep = existingImages.map(img => {
+                // Use the original image_url (not the full URL with backend base)
+                let originalUrl = img.image_url || img.url;
+                // If it's a full URL, extract just the path part for matching
+                if (originalUrl.startsWith('http')) {
+                    const backendBase = getBackendBaseURL();
+                    if (originalUrl.startsWith(backendBase)) {
+                        originalUrl = originalUrl.replace(backendBase, '');
+                    }
+                }
+                return {
+                    image_url: originalUrl,
+                    is_primary: img.isPrimary
+                };
+            });
+            uploadFormData.append("image_urls", JSON.stringify(imagesToKeep));
+        }
 
         // Append image files
         imageFiles.forEach((imgFile) => {
@@ -212,7 +236,7 @@ export function ProductForm({ productId, initialData }: ProductFormProps) {
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label htmlFor="price">Price ($)</Label>
+                            <Label htmlFor="price">Price (₹)</Label>
                             <Input id="price" name="price" type="number" min="0" step="0.01" defaultValue={getInitialValue('price') as number} required />
                         </div>
                         <div className="space-y-2">

@@ -174,7 +174,7 @@ export default function ProductsPage() {
                                                         )}
                                                     </div>
                                                 </td>
-                                                <td className="p-4 align-middle">${product.base_price.toFixed(2)}</td>
+                                                <td className="p-4 align-middle">₹{product.base_price.toFixed(2)}</td>
                                                 <td className="p-4 align-middle">{totalStock}</td>
                                                 <td className="p-4 align-middle">
                                                     <span
@@ -247,7 +247,7 @@ export default function ProductsPage() {
                                                     </p>
                                                 )}
                                                 <div className="flex items-center gap-4 mt-2 text-sm">
-                                                    <span className="font-medium">${product.base_price.toFixed(2)}</span>
+                                                    <span className="font-medium">₹{product.base_price.toFixed(2)}</span>
                                                     <span className="text-muted-foreground">Stock: {totalStock}</span>
                                                     <span
                                                         className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${

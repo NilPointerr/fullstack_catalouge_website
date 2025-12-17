@@ -7,6 +7,7 @@ import { useEffect, useState, useCallback } from "react";
 import { getWishlist, WishlistItem, Product } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
+import { ArrowLeft } from "lucide-react";
 
 export default function WishlistPage() {
     const router = useRouter();
@@ -78,6 +79,17 @@ export default function WishlistPage() {
 
     return (
         <div className="container py-8">
+            {/* Back Button - Mobile */}
+            <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.back()}
+                className="mb-6 md:hidden -ml-2"
+            >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back
+            </Button>
+            
             <div className="flex items-center justify-between mb-8">
                 <h1 className="text-3xl font-bold tracking-tight">My Wishlist</h1>
                 <p className="text-muted-foreground">

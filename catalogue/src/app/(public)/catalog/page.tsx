@@ -5,7 +5,7 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { FilterPanel } from "@/components/features/FilterPanel";
 import { ProductCard } from "@/components/features/ProductCard";
 import { Button } from "@/components/ui/button";
-import { SlidersHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
+import { SlidersHorizontal, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { searchProducts, Product, getCategories, Category, ProductFilters } from "@/lib/api";
 
 const ITEMS_PER_PAGE = 12;
@@ -28,12 +28,13 @@ export default function CatalogPage() {
     const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
     const [selectedColors, setSelectedColors] = useState<string[]>([]);
     const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
-    const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000]);
+    const [priceRange, setPriceRange] = useState<[number, number]>([0, 50000]);
     const [sortBy, setSortBy] = useState<string>(sortParam);
     const [isLoading, setIsLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
+    const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
     const isInitialized = useRef(false);
 
     // Initialize filters from URL params
@@ -125,7 +126,7 @@ export default function CatalogPage() {
                     colors: selectedColors.length > 0 ? selectedColors : undefined,
                     sizes: selectedSizes.length > 0 ? selectedSizes : undefined,
                     minPrice: priceRange[0] > 0 ? priceRange[0] : undefined,
-                    maxPrice: priceRange[1] < 1000 ? priceRange[1] : undefined,
+                    maxPrice: priceRange[1] < 50000 ? priceRange[1] : undefined,
                     sortBy: sortBy !== "featured" ? sortBy : undefined,
                 };
                 
@@ -164,6 +165,8 @@ export default function CatalogPage() {
             setCurrentPage(1);
         }
     }, [search, selectedCategoryIds, selectedColors, selectedSizes, priceRange, sortBy]);
+
+    // Note: Mobile filter drawer closes automatically when filters are applied via FilterPanel's URL updates
 
     // Update URL when page changes
     const updatePage = (newPage: number) => {
@@ -247,7 +250,12 @@ export default function CatalogPage() {
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <Button variant="outline" size="sm" className="md:hidden shadow-sm hover:shadow-md transition-shadow">
+                    <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="md:hidden shadow-sm hover:shadow-md transition-shadow"
+                        onClick={() => setIsMobileFilterOpen(true)}
+                    >
                         <SlidersHorizontal className="mr-2 h-4 w-4" />
                         Filters
                     </Button>
@@ -278,8 +286,8 @@ export default function CatalogPage() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] gap-8 lg:gap-12">
-                {/* Sidebar Filters */}
+            <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] lg:grid-cols-[260px_1fr] gap-6 md:gap-8 lg:gap-12">
+                {/* Sidebar Filters - Desktop */}
                 <aside className="hidden md:block">
                     <div className="sticky top-24">
                         <FilterPanel 
@@ -296,6 +304,44 @@ export default function CatalogPage() {
                     </div>
                 </aside>
 
+                {/* Mobile Filter Drawer */}
+                {isMobileFilterOpen && (
+                    <div className="fixed inset-0 z-50 md:hidden">
+                        {/* Backdrop */}
+                        <div 
+                            className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+                            onClick={() => setIsMobileFilterOpen(false)}
+                        />
+                        {/* Drawer */}
+                        <div className="absolute inset-y-0 left-0 w-full max-w-sm bg-background border-r border-border shadow-xl overflow-y-auto">
+                            <div className="sticky top-0 bg-background border-b border-border p-4 flex items-center justify-between z-10">
+                                <h2 className="text-lg font-semibold">Filters</h2>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setIsMobileFilterOpen(false)}
+                                    className="h-8 w-8 p-0"
+                                >
+                                    <X className="h-5 w-5" />
+                                </Button>
+                            </div>
+                            <div className="p-4">
+                                <FilterPanel 
+                                    categories={categories}
+                                    selectedCategoryIds={selectedCategoryIds}
+                                    selectedColors={selectedColors}
+                                    selectedSizes={selectedSizes}
+                                    priceRange={priceRange}
+                                    onCategoryChange={setSelectedCategoryIds}
+                                    onColorChange={setSelectedColors}
+                                    onSizeChange={setSelectedSizes}
+                                    onPriceChange={setPriceRange}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Product Grid */}
                 <div className="space-y-10">
                     {isLoading ? (
@@ -303,22 +349,38 @@ export default function CatalogPage() {
                             <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent"></div>
                             <p className="mt-4 text-muted-foreground">Loading products...</p>
                         </div>
-                    ) : (
-                        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+                    ) : products.length > 0 ? (
+                        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
                             {products.map((product) => (
                                 <ProductCard key={product.id} product={product} />
                             ))}
-                            {products.length === 0 && (
-                                <div className="col-span-full text-center py-16">
-                                    <p className="text-lg font-medium text-muted-foreground mb-2">No products found</p>
-                                    <p className="text-sm text-muted-foreground">Try adjusting your filters or search terms</p>
-                                </div>
+                        </div>
+                    ) : (
+                        <div className="col-span-full text-center py-16">
+                            <p className="text-lg font-medium text-muted-foreground mb-2">No products found</p>
+                            <p className="text-sm text-muted-foreground mb-4">Try adjusting your filters or search terms</p>
+                            {(selectedCategoryIds.length > 0 || selectedColors.length > 0 || selectedSizes.length > 0 || priceRange[1] < 50000 || search) && (
+                                <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                        setSelectedCategoryIds([]);
+                                        setSelectedColors([]);
+                                        setSelectedSizes([]);
+                                        setPriceRange([0, 50000]);
+                                        setSortBy("featured");
+                                        const params = new URLSearchParams();
+                                        if (search) params.set("search", search);
+                                        router.push(`${pathname}${params.toString() ? `?${params.toString()}` : ''}`);
+                                    }}
+                                >
+                                    Clear All Filters
+                                </Button>
                             )}
                         </div>
                     )}
 
                     {/* Pagination */}
-                    {totalPages > 1 && (
+                    {!isLoading && totalPages > 1 && (
                         <div className="flex flex-col items-center gap-4 pt-4">
                             <div className="flex items-center justify-center gap-2 flex-wrap">
                                 <Button 

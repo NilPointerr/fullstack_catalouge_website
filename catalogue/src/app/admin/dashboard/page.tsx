@@ -5,7 +5,7 @@ import { Package, DollarSign, Users, Activity } from "lucide-react";
 const stats = [
     {
         title: "Total Revenue",
-        value: "$45,231.89",
+        value: "₹45,231.89",
         change: "+20.1% from last month",
         icon: DollarSign,
     },
@@ -82,7 +82,7 @@ export default function AdminDashboard() {
                                             <p className="text-xs text-muted-foreground">olivia.martin@email.com</p>
                                         </div>
                                     </div>
-                                    <div className="font-medium">+$1,999.00</div>
+                                    <div className="font-medium">+₹1,999.00</div>
                                 </div>
                             ))}
                         </div>
@@ -105,7 +105,7 @@ export default function AdminDashboard() {
                                             <p className="text-xs text-muted-foreground">In Stock</p>
                                         </div>
                                     </div>
-                                    <div className="font-medium">$49.99</div>
+                                    <div className="font-medium">₹49.99</div>
                                 </div>
                             ))}
                         </div>
