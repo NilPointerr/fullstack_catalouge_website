@@ -172,7 +172,16 @@ export function ProductCard({ product, onWishlistChange }: ProductCardProps) {
                     "absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background/95 via-background/80 to-transparent backdrop-blur-sm transition-all duration-300 ease-out",
                     isHovered ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"
                 )}>
-                    <Button className="w-full shadow-md hover:shadow-lg transition-shadow duration-200" size="sm" disabled={!inStock}>
+                    <Button 
+                        className="w-full shadow-md hover:shadow-lg transition-shadow duration-200" 
+                        size="sm" 
+                        disabled={!inStock || isLoading}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleWishlistToggle(e);
+                        }}
+                    >
                         Quick Add
                     </Button>
                 </div>

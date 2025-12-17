@@ -169,9 +169,6 @@ export default function ProductPage() {
 
                     {/* Actions */}
                     <div className="flex gap-4">
-                        <Button size="lg" className="flex-1">
-                            Add to Cart
-                        </Button>
                         <Button 
                             size="lg" 
                             variant="outline" 
