@@ -74,13 +74,19 @@ def remove_from_wishlist(
     """
     Remove product from wishlist.
     """
-    wishlist_item = db.query(Wishlist).filter(
+    # Load wishlist item with product relationship before deletion
+    wishlist_item = db.query(Wishlist).options(
+        selectinload(Wishlist.product).selectinload(Product.images)
+    ).filter(
         Wishlist.user_id == current_user.id,
         Wishlist.product_id == product_id
     ).first()
     if not wishlist_item:
         raise HTTPException(status_code=404, detail="Item not found in wishlist")
+    
+    # Store the item data before deletion
+    result = wishlist_item
         
     db.delete(wishlist_item)
     db.commit()
-    return wishlist_item
+    return result

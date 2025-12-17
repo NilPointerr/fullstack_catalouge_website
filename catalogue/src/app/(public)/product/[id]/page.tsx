@@ -5,15 +5,21 @@ import { Button } from "@/components/ui/button";
 import { Heart, Share2, Truck, ShieldCheck } from "lucide-react";
 import { ProductCard } from "@/components/features/ProductCard";
 import { useEffect, useState } from "react";
-import { getProduct, searchProducts, Product } from "@/lib/api";
-import { useParams } from "next/navigation";
+import { getProduct, searchProducts, Product, addToWishlist, removeFromWishlist, getWishlist } from "@/lib/api";
+import { useParams, useRouter } from "next/navigation";
+import { useAuthStore } from "@/store/auth-store";
+import { cn } from "@/lib/utils";
 
 export default function ProductPage() {
     const params = useParams();
+    const router = useRouter();
+    const { isAuthenticated } = useAuthStore();
     const id = params?.id as string;
     const [product, setProduct] = useState<Product | null>(null);
     const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isWishlisted, setIsWishlisted] = useState(false);
+    const [isWishlistLoading, setIsWishlistLoading] = useState(false);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -37,6 +43,47 @@ export default function ProductPage() {
         fetchData();
     }, [id]);
 
+    // Check if product is in wishlist
+    useEffect(() => {
+        const checkWishlistStatus = async () => {
+            if (!isAuthenticated || !product) return;
+            try {
+                const wishlist = await getWishlist();
+                const inWishlist = wishlist.some(item => item.product_id === product.id);
+                setIsWishlisted(inWishlist);
+            } catch (error) {
+                console.error("Failed to check wishlist status:", error);
+            }
+        };
+        checkWishlistStatus();
+    }, [isAuthenticated, product]);
+
+    const handleWishlistToggle = async () => {
+        if (!isAuthenticated) {
+            router.push("/login");
+            return;
+        }
+
+        if (!product) return;
+
+        setIsWishlistLoading(true);
+        try {
+            if (isWishlisted) {
+                await removeFromWishlist(product.id);
+                setIsWishlisted(false);
+            } else {
+                await addToWishlist(product.id);
+                setIsWishlisted(true);
+            }
+        } catch (error: any) {
+            console.error("Failed to update wishlist:", error);
+            const errorMessage = error.response?.data?.detail || "Failed to update wishlist";
+            alert(errorMessage);
+        } finally {
+            setIsWishlistLoading(false);
+        }
+    };
+
     if (isLoading) {
         return <div className="container py-12 text-center">Loading product...</div>;
     }
@@ -45,11 +92,22 @@ export default function ProductPage() {
         return <div className="container py-12 text-center">Product not found.</div>;
     }
 
-    // Helper to get image URLs
-    const imageUrls = product.images.map(img => img.image_url);
-    if (imageUrls.length === 0) {
-        imageUrls.push("https://placehold.co/600x800?text=No+Image");
-    }
+    // Helper to get image URLs - prepend backend URL if relative path
+    const getImageUrl = (url: string) => {
+        if (!url) return "https://placehold.co/600x800?text=No+Image";
+        if (url.startsWith("http://") || url.startsWith("https://")) {
+            return url;
+        }
+        // Relative path - prepend backend URL
+        const backendUrl = typeof window !== 'undefined' 
+            ? (process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:8000')
+            : 'http://localhost:8000';
+        return `${backendUrl}${url.startsWith('/') ? url : '/' + url}`;
+    };
+    
+    const imageUrls = product.images.length > 0 
+        ? product.images.map(img => getImageUrl(img.image_url))
+        : ["https://placehold.co/600x800?text=No+Image"];
 
     return (
         <div className="container py-8 md:py-12">
@@ -64,7 +122,7 @@ export default function ProductPage() {
                         {/* <h2 className="text-lg font-medium text-muted-foreground">{product.brand}</h2> */}
                         <h1 className="text-3xl font-bold tracking-tight">{product.name}</h1>
                         <div className="mt-4 flex items-end gap-4">
-                            <span className="text-3xl font-bold">${product.base_price.toFixed(2)}</span>
+                            <span className="text-3xl font-bold">${(product.base_price ?? 0).toFixed(2)}</span>
                             {/* Original price / discount logic if available */}
                         </div>
                     </div>
@@ -94,8 +152,14 @@ export default function ProductPage() {
                         <Button size="lg" className="flex-1">
                             Add to Cart
                         </Button>
-                        <Button size="lg" variant="outline" className="px-3">
-                            <Heart className="h-5 w-5" />
+                        <Button 
+                            size="lg" 
+                            variant="outline" 
+                            className={cn("px-3", isWishlisted && "text-red-500")}
+                            onClick={handleWishlistToggle}
+                            disabled={isWishlistLoading}
+                        >
+                            <Heart className={cn("h-5 w-5", isWishlisted && "fill-current")} />
                         </Button>
                         <Button size="lg" variant="ghost" className="px-3">
                             <Share2 className="h-5 w-5" />
