@@ -5,7 +5,7 @@ sys.path.insert(0, '/app')
 from sqlalchemy import create_engine
 from app.db.base import Base
 from app.core.config import settings
-from app.models import user, category, product, wishlist
+from app.models import user, category, product, wishlist, showroom
 
 # Create sync engine for create_all
 sync_url = settings.DATABASE_URL
