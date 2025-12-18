@@ -92,9 +92,6 @@
 ✅ Backend:   http://localhost:8000
 ✅ API Docs:  http://localhost:8000/docs
 ✅ Database:  PostgreSQL on port 5432
-✅ Redis:     Port 6380
-✅ MinIO:     http://localhost:9002
-✅ Nginx:     Port 80
 ```
 
 ### Issue: Database Not Initialized

@@ -118,7 +118,7 @@ export function FilterPanel({
         onCategoryChange([]);
         onColorChange([]);
         onSizeChange([]);
-        onPriceChange([0, 1000]);
+        onPriceChange([0, 50000]);
         // Preserve search param if it exists
         const params = new URLSearchParams(searchParams.toString());
         params.delete("categories");
@@ -176,14 +176,15 @@ export function FilterPanel({
                     <input 
                         type="range" 
                         min="0" 
-                        max="1000" 
+                        max="50000" 
+                        step="100"
                         value={priceRange[1]}
                         onChange={handlePriceChange}
                         className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0" 
                     />
                     <div className="flex items-center justify-between text-xs text-muted-foreground mt-3 font-medium">
-                        <span>${priceRange[0]}</span>
-                        <span className="text-foreground font-semibold">${priceRange[1]}</span>
+                        <span>₹{priceRange[0].toLocaleString('en-IN')}</span>
+                        <span className="text-foreground font-semibold">₹{priceRange[1].toLocaleString('en-IN')}</span>
                     </div>
                 </div>
             </div>

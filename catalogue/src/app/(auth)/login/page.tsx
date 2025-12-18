@@ -71,6 +71,11 @@ export default function LoginPage() {
                 },
                 accessToken
             );
+            
+            // Store email in sessionStorage for potential token refresh
+            if (typeof window !== 'undefined') {
+                sessionStorage.setItem('user_email', userData.email);
+            }
 
             setIsLoading(false);
             router.push("/");

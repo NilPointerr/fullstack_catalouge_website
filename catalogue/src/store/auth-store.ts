@@ -16,6 +16,7 @@ interface AuthState {
     login: (user: User, token: string) => void;
     logout: () => void;
     setUser: (user: User | null) => void;
+    setToken: (token: string) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -25,8 +26,15 @@ export const useAuthStore = create<AuthState>()(
             accessToken: null,
             isAuthenticated: false,
             login: (user, token) => set({ user, accessToken: token, isAuthenticated: true }),
-            logout: () => set({ user: null, accessToken: null, isAuthenticated: false }),
+            logout: () => {
+                // Clear session storage for password
+                if (typeof window !== 'undefined') {
+                    sessionStorage.removeItem('user_email');
+                }
+                set({ user: null, accessToken: null, isAuthenticated: false });
+            },
             setUser: (user) => set({ user, isAuthenticated: !!user }),
+            setToken: (token) => set({ accessToken: token }),
         }),
         {
             name: 'auth-storage',

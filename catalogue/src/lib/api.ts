@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosError, InternalAxiosRequestConfig, AxiosResponse } from 'axios';
 import { useAuthStore } from '@/store/auth-store';
 
 // Get API base URL - use localhost for client-side, backend hostname for server-side
@@ -21,6 +21,60 @@ export const getBackendBaseURL = () => {
     return process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://backend:8000';
 };
 
+// Utility function to check if token is expired or about to expire
+const isTokenExpired = (token: string | null): boolean => {
+    if (!token) return true;
+    
+    try {
+        // Decode JWT without verification to check expiration
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(
+            atob(base64)
+                .split('')
+                .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+                .join('')
+        );
+        const payload = JSON.parse(jsonPayload);
+        
+        // Check if token is expired or will expire in the next 5 minutes
+        const exp = payload.exp * 1000; // Convert to milliseconds
+        const now = Date.now();
+        const fiveMinutes = 5 * 60 * 1000; // 5 minutes in milliseconds
+        
+        return exp <= (now + fiveMinutes);
+    } catch (error) {
+        // If we can't decode the token, consider it expired
+        return true;
+    }
+};
+
+// Function to refresh token
+const refreshToken = async (): Promise<string | null> => {
+    const currentToken = useAuthStore.getState().accessToken;
+    if (!currentToken) return null;
+    
+    try {
+        const response = await axios.post(
+            `${baseURL}/login/refresh-token`,
+            {},
+            {
+                headers: {
+                    Authorization: `Bearer ${currentToken}`,
+                },
+            }
+        );
+        
+        const newToken = response.data.access_token;
+        useAuthStore.getState().setToken(newToken);
+        return newToken;
+    } catch (error) {
+        // If refresh fails, logout user
+        useAuthStore.getState().logout();
+        return null;
+    }
+};
+
 export const api = axios.create({
     baseURL,
     headers: {
@@ -28,11 +82,19 @@ export const api = axios.create({
     },
 });
 
-import { AxiosError, InternalAxiosRequestConfig, AxiosResponse } from 'axios';
-
 api.interceptors.request.use(
-    (config: InternalAxiosRequestConfig) => {
-        const token = useAuthStore.getState().accessToken;
+    async (config: InternalAxiosRequestConfig) => {
+        let token = useAuthStore.getState().accessToken;
+        
+        // Check if token is expired or about to expire
+        if (token && isTokenExpired(token)) {
+            // Try to refresh token
+            const newToken = await refreshToken();
+            if (newToken) {
+                token = newToken;
+            }
+        }
+        
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -45,10 +107,22 @@ api.interceptors.response.use(
     (response: AxiosResponse) => response,
     async (error: AxiosError) => {
         const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+        
+        // If we get a 401 and haven't retried yet, try to refresh token
         if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
             originalRequest._retry = true;
-            useAuthStore.getState().logout();
+            
+            const newToken = await refreshToken();
+            if (newToken) {
+                // Retry the original request with new token
+                originalRequest.headers.Authorization = `Bearer ${newToken}`;
+                return api(originalRequest);
+            } else {
+                // Refresh failed, logout user
+                useAuthStore.getState().logout();
+            }
         }
+        
         return Promise.reject(error);
     }
 );
@@ -104,6 +178,51 @@ export interface Category {
     description?: string;
     image_url?: string;
     is_active: boolean;
+}
+
+export interface Showroom {
+    id: number;
+    name: string;
+    address: string;
+    city: string;
+    state: string;
+    zip_code: string;
+    phone: string;
+    email: string;
+    opening_hours: Record<string, string>; // e.g., {"monday": "10:00 AM - 8:00 PM", ...}
+    map_url?: string;
+    gallery_images?: string[];
+    is_active: boolean;
+    created_at?: string;
+    updated_at?: string;
+}
+
+export interface ShowroomCreate {
+    name: string;
+    address: string;
+    city: string;
+    state: string;
+    zip_code: string;
+    phone: string;
+    email: string;
+    opening_hours: Record<string, string>;
+    map_url?: string;
+    gallery_images?: string[];
+    is_active?: boolean;
+}
+
+export interface ShowroomUpdate {
+    name?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    zip_code?: string;
+    phone?: string;
+    email?: string;
+    opening_hours?: Record<string, string>;
+    map_url?: string;
+    gallery_images?: string[];
+    is_active?: boolean;
 }
 
 // API Methods
@@ -187,6 +306,13 @@ export const getProduct = async (id: string | number): Promise<Product> => {
     return response.data;
 };
 
+export const getTrendingProducts = async (limit: number = 4): Promise<Product[]> => {
+    const response = await api.get<Product[]>(`/products/trending`, {
+        params: { limit },
+    });
+    return response.data;
+};
+
 export const getProfile = async (): Promise<User> => {
     const response = await api.get<User>('/users/me');
     return response.data;
@@ -218,5 +344,48 @@ export const addToWishlist = async (productId: number): Promise<WishlistItem> =>
 
 export const removeFromWishlist = async (productId: number): Promise<WishlistItem> => {
     const response = await api.delete<WishlistItem>(`/wishlist/${productId}`);
+    return response.data;
+};
+
+// Admin product management functions
+export const updateProduct = async (productId: number, formData: FormData): Promise<Product> => {
+    const response = await api.put<Product>(`/products/${productId}`, formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data',
+        },
+    });
+    return response.data;
+};
+
+export const deleteProduct = async (productId: number): Promise<Product> => {
+    const response = await api.delete<Product>(`/products/${productId}`);
+    return response.data;
+};
+
+// Showroom API functions
+export const getShowrooms = async (activeOnly: boolean = true): Promise<Showroom[]> => {
+    const response = await api.get<Showroom[]>('/showrooms', {
+        params: { active_only: activeOnly },
+    });
+    return response.data;
+};
+
+export const getShowroom = async (id: number): Promise<Showroom> => {
+    const response = await api.get<Showroom>(`/showrooms/${id}`);
+    return response.data;
+};
+
+export const createShowroom = async (data: ShowroomCreate): Promise<Showroom> => {
+    const response = await api.post<Showroom>('/showrooms', data);
+    return response.data;
+};
+
+export const updateShowroom = async (id: number, data: ShowroomUpdate): Promise<Showroom> => {
+    const response = await api.put<Showroom>(`/showrooms/${id}`, data);
+    return response.data;
+};
+
+export const deleteShowroom = async (id: number): Promise<Showroom> => {
+    const response = await api.delete<Showroom>(`/showrooms/${id}`);
     return response.data;
 };

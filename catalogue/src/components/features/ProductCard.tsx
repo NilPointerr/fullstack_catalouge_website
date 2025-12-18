@@ -73,27 +73,36 @@ export function ProductCard({ product, onWishlistChange }: ProductCardProps) {
     };
 
     // Helper to get image URL - prepend backend URL if relative path
-    const getImageUrl = (index: number) => {
-        if (!product.images || product.images.length === 0) {
+    const getImageUrl = (img: any) => {
+        if (!img || !img.image_url) {
             return "https://placehold.co/600x800?text=No+Image";
         }
-        if (index >= product.images.length) {
+        const url = img.image_url;
+        if (!url || url.trim() === '') {
             return "https://placehold.co/600x800?text=No+Image";
         }
-        const url = product.images[index].image_url;
-        if (!url) return "https://placehold.co/600x800?text=No+Image";
-        if (url.startsWith("http://") || url.startsWith("https://")) {
-            return url;
+        const trimmedUrl = url.trim();
+        if (trimmedUrl.startsWith("http://") || trimmedUrl.startsWith("https://")) {
+            return trimmedUrl;
         }
         // Relative path - prepend backend URL
         const backendUrl = typeof window !== 'undefined'
             ? (process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:8000')
             : 'http://localhost:8000';
-        return `${backendUrl}${url.startsWith('/') ? url : '/' + url}`;
+        return `${backendUrl}${trimmedUrl.startsWith('/') ? trimmedUrl : '/' + trimmedUrl}`;
     };
 
-    const mainImage = getImageUrl(0);
-    const hoverImage = getImageUrl(1);
+    // Sort images: primary first, then others
+    const sortedImages = product.images && product.images.length > 0
+        ? [...product.images].sort((a, b) => {
+            if (a.is_primary) return -1;
+            if (b.is_primary) return 1;
+            return 0;
+        })
+        : [];
+
+    const mainImage = sortedImages.length > 0 ? getImageUrl(sortedImages[0]) : "https://placehold.co/600x800?text=No+Image";
+    const hoverImage = sortedImages.length > 1 ? getImageUrl(sortedImages[1]) : mainImage;
 
     // Calculate stock from variants
     const inStock = product.variants?.some(v => v.stock_quantity > 0) ?? false;
@@ -112,6 +121,13 @@ export function ProductCard({ product, onWishlistChange }: ProductCardProps) {
                         "h-full w-full object-cover transition-all duration-700 ease-out",
                         isHovered && hoverImage !== mainImage ? "opacity-0 scale-110" : "opacity-100 scale-100"
                     )}
+                    onError={(e) => {
+                        // Fallback to placeholder if image fails to load
+                        const target = e.target as HTMLImageElement;
+                        if (target.src !== "https://placehold.co/600x800?text=No+Image") {
+                            target.src = "https://placehold.co/600x800?text=No+Image";
+                        }
+                    }}
                 />
                 {hoverImage !== mainImage && (
                     <img
@@ -121,6 +137,13 @@ export function ProductCard({ product, onWishlistChange }: ProductCardProps) {
                             "absolute inset-0 h-full w-full object-cover transition-all duration-700 ease-out",
                             isHovered ? "opacity-100 scale-100" : "opacity-0 scale-110"
                         )}
+                        onError={(e) => {
+                            // Fallback to placeholder if image fails to load
+                            const target = e.target as HTMLImageElement;
+                            if (target.src !== "https://placehold.co/600x800?text=No+Image") {
+                                target.src = "https://placehold.co/600x800?text=No+Image";
+                            }
+                        }}
                     />
                 )}
 
@@ -149,7 +172,16 @@ export function ProductCard({ product, onWishlistChange }: ProductCardProps) {
                     "absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background/95 via-background/80 to-transparent backdrop-blur-sm transition-all duration-300 ease-out",
                     isHovered ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"
                 )}>
-                    <Button className="w-full shadow-md hover:shadow-lg transition-shadow duration-200" size="sm" disabled={!inStock}>
+                    <Button 
+                        className="w-full shadow-md hover:shadow-lg transition-shadow duration-200" 
+                        size="sm" 
+                        disabled={!inStock || isLoading}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleWishlistToggle(e);
+                        }}
+                    >
                         Quick Add
                     </Button>
                 </div>
@@ -164,7 +196,7 @@ export function ProductCard({ product, onWishlistChange }: ProductCardProps) {
                     </Link>
                 </div>
                 <div className="mt-3 flex items-center gap-2">
-                    <span className="text-lg font-bold text-foreground">${(product.base_price ?? 0).toFixed(2)}</span>
+                    <span className="text-lg font-bold text-foreground">₹{(product.base_price ?? 0).toFixed(2)}</span>
                     {/* Original price / discount logic would go here if available in API */}
                 </div>
             </div>

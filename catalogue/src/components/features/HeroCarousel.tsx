@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 const slides = [
     {
@@ -83,8 +84,10 @@ export function HeroCarousel() {
                                 animate={{ y: 0, opacity: 1 }}
                                 transition={{ delay: 0.6 }}
                             >
-                                <Button size="lg" className="bg-white text-black hover:bg-white/90">
-                                    {slides[current].cta}
+                                <Button asChild size="lg" className="bg-white text-black hover:bg-white/90">
+                                    <Link href="/catalog">
+                                        {slides[current].cta}
+                                    </Link>
                                 </Button>
                             </motion.div>
                         </div>
