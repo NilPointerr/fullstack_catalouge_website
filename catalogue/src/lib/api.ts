@@ -180,6 +180,51 @@ export interface Category {
     is_active: boolean;
 }
 
+export interface Showroom {
+    id: number;
+    name: string;
+    address: string;
+    city: string;
+    state: string;
+    zip_code: string;
+    phone: string;
+    email: string;
+    opening_hours: Record<string, string>; // e.g., {"monday": "10:00 AM - 8:00 PM", ...}
+    map_url?: string;
+    gallery_images?: string[];
+    is_active: boolean;
+    created_at?: string;
+    updated_at?: string;
+}
+
+export interface ShowroomCreate {
+    name: string;
+    address: string;
+    city: string;
+    state: string;
+    zip_code: string;
+    phone: string;
+    email: string;
+    opening_hours: Record<string, string>;
+    map_url?: string;
+    gallery_images?: string[];
+    is_active?: boolean;
+}
+
+export interface ShowroomUpdate {
+    name?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    zip_code?: string;
+    phone?: string;
+    email?: string;
+    opening_hours?: Record<string, string>;
+    map_url?: string;
+    gallery_images?: string[];
+    is_active?: boolean;
+}
+
 // API Methods
 export const getCategories = async (): Promise<Category[]> => {
     const response = await api.get<Category[]>('/categories');
@@ -314,5 +359,33 @@ export const updateProduct = async (productId: number, formData: FormData): Prom
 
 export const deleteProduct = async (productId: number): Promise<Product> => {
     const response = await api.delete<Product>(`/products/${productId}`);
+    return response.data;
+};
+
+// Showroom API functions
+export const getShowrooms = async (activeOnly: boolean = true): Promise<Showroom[]> => {
+    const response = await api.get<Showroom[]>('/showrooms', {
+        params: { active_only: activeOnly },
+    });
+    return response.data;
+};
+
+export const getShowroom = async (id: number): Promise<Showroom> => {
+    const response = await api.get<Showroom>(`/showrooms/${id}`);
+    return response.data;
+};
+
+export const createShowroom = async (data: ShowroomCreate): Promise<Showroom> => {
+    const response = await api.post<Showroom>('/showrooms', data);
+    return response.data;
+};
+
+export const updateShowroom = async (id: number, data: ShowroomUpdate): Promise<Showroom> => {
+    const response = await api.put<Showroom>(`/showrooms/${id}`, data);
+    return response.data;
+};
+
+export const deleteShowroom = async (id: number): Promise<Showroom> => {
+    const response = await api.delete<Showroom>(`/showrooms/${id}`);
     return response.data;
 };

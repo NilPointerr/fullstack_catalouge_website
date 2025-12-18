@@ -1,4 +1,5 @@
 -- Drop existing tables if any
+DROP TABLE IF EXISTS showrooms CASCADE;
 DROP TABLE IF EXISTS wishlists CASCADE;
 DROP TABLE IF EXISTS product_images CASCADE;
 DROP TABLE IF EXISTS product_variants CASCADE;
@@ -69,6 +70,24 @@ CREATE TABLE wishlists (
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
     product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create showrooms table
+CREATE TABLE showrooms (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    address VARCHAR(255) NOT NULL,
+    city VARCHAR(255) NOT NULL,
+    state VARCHAR(255) NOT NULL,
+    zip_code VARCHAR(20) NOT NULL,
+    phone VARCHAR(50) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    opening_hours JSONB NOT NULL,
+    map_url VARCHAR(500),
+    gallery_images JSONB,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE
 );
 
 -- Insert admin user (password: admin123)

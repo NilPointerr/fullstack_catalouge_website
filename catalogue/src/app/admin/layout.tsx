@@ -8,7 +8,8 @@ import {
     Tags,
     Users,
     Settings,
-    LogOut
+    LogOut,
+    MapPin
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth-store";
@@ -46,6 +47,7 @@ export default function AdminLayout({
         { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
         { name: "Products", href: "/admin/products", icon: Package },
         { name: "Categories", href: "/admin/categories", icon: Tags },
+        { name: "Showrooms", href: "/admin/showrooms", icon: MapPin },
         { name: "Customers", href: "/admin/customers", icon: Users },
         { name: "Settings", href: "/admin/settings", icon: Settings },
     ];
