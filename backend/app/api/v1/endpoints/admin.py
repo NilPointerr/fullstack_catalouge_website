@@ -1,7 +1,6 @@
 from typing import Any
 from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
+from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from app.api import deps
@@ -12,24 +11,21 @@ from app.models.category import Category
 router = APIRouter()
 
 @router.get("/stats")
-async def get_admin_stats(
-    db: AsyncSession = Depends(deps.get_db),
+def get_admin_stats(
+    db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_active_superuser),
 ) -> Any:
     """
     Get admin dashboard statistics.
     """
     # Count users
-    user_count = await db.execute(select(func.count(User.id)))
-    user_count = user_count.scalar()
+    user_count = db.query(func.count(User.id)).scalar()
 
     # Count products
-    product_count = await db.execute(select(func.count(Product.id)))
-    product_count = product_count.scalar()
+    product_count = db.query(func.count(Product.id)).scalar()
 
     # Count categories
-    category_count = await db.execute(select(func.count(Category.id)))
-    category_count = category_count.scalar()
+    category_count = db.query(func.count(Category.id)).scalar()
 
     return {
         "total_users": user_count,

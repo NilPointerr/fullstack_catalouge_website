@@ -8,7 +8,8 @@ import {
     Tags,
     Users,
     Settings,
-    LogOut
+    LogOut,
+    MapPin
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth-store";
@@ -32,12 +33,11 @@ export default function AdminLayout({
     useEffect(() => {
         if (!isMounted) return;
 
-        // In a real app, we would check the token validity and role here
-        // For now, simple client-side check
+        // Check authentication and admin status
         if (!isAuthenticated) {
             router.push("/login");
-        } else if (user?.role !== "admin") {
-            // router.push("/"); // Redirect non-admins
+        } else if (!user?.is_superuser) {
+            router.push("/"); // Redirect non-admins
         }
     }, [isMounted, isAuthenticated, user, router]);
 
@@ -47,6 +47,7 @@ export default function AdminLayout({
         { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
         { name: "Products", href: "/admin/products", icon: Package },
         { name: "Categories", href: "/admin/categories", icon: Tags },
+        { name: "Showrooms", href: "/admin/showrooms", icon: MapPin },
         { name: "Customers", href: "/admin/customers", icon: Users },
         { name: "Settings", href: "/admin/settings", icon: Settings },
     ];

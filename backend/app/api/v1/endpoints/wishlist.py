@@ -1,8 +1,6 @@
 from typing import Any, List
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import Session, selectinload
 
 from app.api import deps
 from app.models.wishlist import Wishlist
@@ -13,8 +11,8 @@ from app.schemas.wishlist import Wishlist as WishlistSchema, WishlistCreate
 router = APIRouter()
 
 @router.get("/", response_model=List[WishlistSchema])
-async def read_wishlist(
-    db: AsyncSession = Depends(deps.get_db),
+def read_wishlist(
+    db: Session = Depends(deps.get_db),
     skip: int = 0,
     limit: int = 100,
     current_user: User = Depends(deps.get_current_active_user),
@@ -22,20 +20,17 @@ async def read_wishlist(
     """
     Retrieve current user's wishlist.
     """
-    result = await db.execute(
-        select(Wishlist)
-        .options(selectinload(Wishlist.product).selectinload(Product.images))
-        .filter(Wishlist.user_id == current_user.id)
-        .offset(skip)
-        .limit(limit)
-    )
-    wishlist_items = result.scalars().all()
+    wishlist_items = db.query(Wishlist).options(
+        selectinload(Wishlist.product).selectinload(Product.images)
+    ).filter(
+        Wishlist.user_id == current_user.id
+    ).offset(skip).limit(limit).all()
     return wishlist_items
 
 @router.post("/", response_model=WishlistSchema)
-async def add_to_wishlist(
+def add_to_wishlist(
     *,
-    db: AsyncSession = Depends(deps.get_db),
+    db: Session = Depends(deps.get_db),
     wishlist_in: WishlistCreate,
     current_user: User = Depends(deps.get_current_active_user),
 ) -> Any:
@@ -43,18 +38,16 @@ async def add_to_wishlist(
     Add product to wishlist.
     """
     # Check if already in wishlist
-    result = await db.execute(
-        select(Wishlist).filter(
-            Wishlist.user_id == current_user.id,
-            Wishlist.product_id == wishlist_in.product_id
-        )
-    )
-    if result.scalars().first():
+    existing = db.query(Wishlist).filter(
+        Wishlist.user_id == current_user.id,
+        Wishlist.product_id == wishlist_in.product_id
+    ).first()
+    if existing:
         raise HTTPException(status_code=400, detail="Product already in wishlist")
         
     # Check if product exists
-    result = await db.execute(select(Product).filter(Product.id == wishlist_in.product_id))
-    if not result.scalars().first():
+    product = db.query(Product).filter(Product.id == wishlist_in.product_id).first()
+    if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
     db_wishlist = Wishlist(
@@ -62,37 +55,38 @@ async def add_to_wishlist(
         product_id=wishlist_in.product_id
     )
     db.add(db_wishlist)
-    await db.commit()
-    await db.refresh(db_wishlist)
+    db.commit()
+    db.refresh(db_wishlist)
     
     # Reload with product relationship
-    result = await db.execute(
-        select(Wishlist)
-        .options(selectinload(Wishlist.product).selectinload(Product.images))
-        .filter(Wishlist.id == db_wishlist.id)
-    )
-    return result.scalars().first()
+    wishlist_item = db.query(Wishlist).options(
+        selectinload(Wishlist.product).selectinload(Product.images)
+    ).filter(Wishlist.id == db_wishlist.id).first()
+    return wishlist_item
 
 @router.delete("/{product_id}", response_model=WishlistSchema)
-async def remove_from_wishlist(
+def remove_from_wishlist(
     *,
-    db: AsyncSession = Depends(deps.get_db),
+    db: Session = Depends(deps.get_db),
     product_id: int,
     current_user: User = Depends(deps.get_current_active_user),
 ) -> Any:
     """
     Remove product from wishlist.
     """
-    result = await db.execute(
-        select(Wishlist).filter(
-            Wishlist.user_id == current_user.id,
-            Wishlist.product_id == product_id
-        )
-    )
-    wishlist_item = result.scalars().first()
+    # Load wishlist item with product relationship before deletion
+    wishlist_item = db.query(Wishlist).options(
+        selectinload(Wishlist.product).selectinload(Product.images)
+    ).filter(
+        Wishlist.user_id == current_user.id,
+        Wishlist.product_id == product_id
+    ).first()
     if not wishlist_item:
         raise HTTPException(status_code=404, detail="Item not found in wishlist")
+    
+    # Store the item data before deletion
+    result = wishlist_item
         
-    await db.delete(wishlist_item)
-    await db.commit()
-    return wishlist_item
+    db.delete(wishlist_item)
+    db.commit()
+    return result

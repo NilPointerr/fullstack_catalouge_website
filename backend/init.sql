@@ -1,4 +1,5 @@
 -- Drop existing tables if any
+DROP TABLE IF EXISTS showrooms CASCADE;
 DROP TABLE IF EXISTS wishlists CASCADE;
 DROP TABLE IF EXISTS product_images CASCADE;
 DROP TABLE IF EXISTS product_variants CASCADE;
@@ -69,6 +70,24 @@ CREATE TABLE wishlists (
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
     product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create showrooms table
+CREATE TABLE showrooms (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    address VARCHAR(255) NOT NULL,
+    city VARCHAR(255) NOT NULL,
+    state VARCHAR(255) NOT NULL,
+    zip_code VARCHAR(20) NOT NULL,
+    phone VARCHAR(50) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    opening_hours JSONB NOT NULL,
+    map_url VARCHAR(500),
+    gallery_images JSONB,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE
 );
 
 -- Insert admin user (password: admin123)
@@ -142,35 +161,35 @@ INSERT INTO product_variants (product_id, sku, size, color, stock_quantity) VALU
 -- Insert product images
 INSERT INTO product_images (product_id, image_url, is_primary) VALUES 
 -- Floral Summer Dress
-(1, 'https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?w=500', TRUE),
-(1, 'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=500', FALSE),
+(1, 'https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?w=800&fm=jpg&fit=crop&q=80', TRUE),
+(1, 'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=800&fm=jpg&fit=crop&q=80', FALSE),
 -- Classic White Shirt
-(2, 'https://images.unsplash.com/photo-1624206112918-f140f087f9b5?w=500', TRUE),
-(2, 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=500', FALSE),
+(2, 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=800&fm=jpg&fit=crop&q=80', TRUE),
+(2, 'https://images.unsplash.com/photo-1624206112918-f140f087f9b5?w=800&fm=jpg&fit=crop&q=80', FALSE),
 -- Denim Jacket
-(3, 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=500', TRUE),
-(3, 'https://images.unsplash.com/photo-1543076659-9380cdf10613?w=500', FALSE),
+(3, 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800&fm=jpg&fit=crop&q=80', TRUE),
+(3, 'https://images.unsplash.com/photo-1543076659-9380cdf10613?w=800&fm=jpg&fit=crop&q=80', FALSE),
 -- High-Waist Jeans
-(4, 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=500', TRUE),
-(4, 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=500', FALSE),
+(4, 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=800&fm=jpg&fit=crop&q=80', TRUE),
+(4, 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=800&fm=jpg&fit=crop&q=80', FALSE),
 -- Cotton T-Shirt
-(5, 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500', TRUE),
-(5, 'https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=500', FALSE),
+(5, 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800&fm=jpg&fit=crop&q=80', TRUE),
+(5, 'https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=800&fm=jpg&fit=crop&q=80', FALSE),
 -- Formal Blazer
-(6, 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=500', TRUE),
-(6, 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=500', FALSE),
+(6, 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=800&fm=jpg&fit=crop&q=80', TRUE),
+(6, 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=800&fm=jpg&fit=crop&q=80', FALSE),
 -- Casual Jeans
-(7, 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=500', TRUE),
-(7, 'https://images.unsplash.com/photo-1624378515195-6bbdb73dac92?w=500', FALSE),
+(7, 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=800&fm=jpg&fit=crop&q=80', TRUE),
+(7, 'https://images.unsplash.com/photo-1624378515195-6bbdb73dac92?w=800&fm=jpg&fit=crop&q=80', FALSE),
 -- Sports Hoodie
-(8, 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=500', TRUE),
-(8, 'https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?w=500', FALSE),
+(8, 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=800&fm=jpg&fit=crop&q=80', TRUE),
+(8, 'https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?w=800&fm=jpg&fit=crop&q=80', FALSE),
 -- Kids T-Shirt Pack
-(9, 'https://images.unsplash.com/photo-1519238263530-99bdd11df2ea?w=500', TRUE),
-(9, 'https://images.unsplash.com/photo-1503919545889-aef636e10ad4?w=500', FALSE),
+(9, 'https://images.unsplash.com/photo-1519238263530-99bdd11df2ea?w=800&fm=jpg&fit=crop&q=80', TRUE),
+(9, 'https://images.unsplash.com/photo-1503919545889-aef636e10ad4?w=800&fm=jpg&fit=crop&q=80', FALSE),
 -- Children Jeans
-(10, 'https://images.unsplash.com/photo-1522771930-78848d9293e8?w=500', TRUE),
-(10, 'https://images.unsplash.com/photo-1503944583220-79d8926ad5e2?w=500', FALSE);
+(10, 'https://images.unsplash.com/photo-1522771930-78848d9293e8?w=800&fm=jpg&fit=crop&q=80', TRUE),
+(10, 'https://images.unsplash.com/photo-1503944583220-79d8926ad5e2?w=800&fm=jpg&fit=crop&q=80', FALSE);
 
 -- Verify the data
 SELECT 'Users created:' as info, COUNT(*) as count FROM users

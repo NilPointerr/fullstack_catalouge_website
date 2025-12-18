@@ -3,34 +3,108 @@
 import { ProductCard } from "@/components/features/ProductCard";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-
-// Mock Data (in real app, fetch from store/API)
-const wishlistProducts = Array.from({ length: 4 }).map((_, i) => ({
-    id: `wish-${i}`,
-    name: `Wishlist Item ${i + 1}`,
-    brand: "Luxe Basics",
-    price: 49.99 + i * 10,
-    images: [
-        "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?q=80&w=1000&auto=format&fit=crop",
-        "https://images.unsplash.com/photo-1503342217505-b0815a046baf?q=80&w=1000&auto=format&fit=crop",
-    ],
-    inStock: true,
-}));
+import { useEffect, useState, useCallback } from "react";
+import { getWishlist, WishlistItem, Product } from "@/lib/api";
+import { useRouter } from "next/navigation";
+import { useAuthStore } from "@/store/auth-store";
+import { ArrowLeft } from "lucide-react";
 
 export default function WishlistPage() {
+    const router = useRouter();
+    const { isAuthenticated } = useAuthStore();
+    const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const fetchWishlist = useCallback(async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const data = await getWishlist();
+            setWishlistItems(data);
+        } catch (err: any) {
+            console.error("Failed to fetch wishlist:", err);
+            setError(err.response?.data?.detail || "Failed to load wishlist");
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!isAuthenticated) {
+            router.push("/login");
+            return;
+        }
+
+        fetchWishlist();
+    }, [isAuthenticated, router, fetchWishlist]);
+
+    // Refresh wishlist when page becomes visible (user navigates back)
+    useEffect(() => {
+        if (!isAuthenticated) return;
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                fetchWishlist();
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [isAuthenticated, fetchWishlist]);
+
+    if (!isAuthenticated) {
+        return null;
+    }
+
+    if (isLoading) {
+        return (
+            <div className="container py-8">
+                <div className="text-center">Loading wishlist...</div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="container py-8">
+                <div className="bg-destructive/15 text-destructive text-sm p-3 rounded-md">
+                    {error}
+                </div>
+            </div>
+        );
+    }
+
+    const products = wishlistItems.map(item => item.product);
+
     return (
         <div className="container py-8">
+            {/* Back Button - Mobile */}
+            <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.back()}
+                className="mb-6 md:hidden -ml-2"
+            >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back
+            </Button>
+            
             <div className="flex items-center justify-between mb-8">
                 <h1 className="text-3xl font-bold tracking-tight">My Wishlist</h1>
                 <p className="text-muted-foreground">
-                    {wishlistProducts.length} items
+                    {products.length} {products.length === 1 ? 'item' : 'items'}
                 </p>
             </div>
 
-            {wishlistProducts.length > 0 ? (
+            {products.length > 0 ? (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                    {wishlistProducts.map((product) => (
-                        <ProductCard key={product.id} product={product} />
+                    {products.map((product) => (
+                        <ProductCard 
+                            key={product.id} 
+                            product={product}
+                            onWishlistChange={fetchWishlist}
+                        />
                     ))}
                 </div>
             ) : (

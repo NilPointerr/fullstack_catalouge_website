@@ -91,10 +91,7 @@
 ✅ Frontend:  http://localhost:3000
 ✅ Backend:   http://localhost:8000
 ✅ API Docs:  http://localhost:8000/docs
-✅ Database:  PostgreSQL on port 5434
-✅ Redis:     Port 6380
-✅ MinIO:     http://localhost:9002
-✅ Nginx:     Port 80
+✅ Database:  PostgreSQL on port 5432
 ```
 
 ### Issue: Database Not Initialized
@@ -269,9 +266,8 @@ curl http://localhost:8000/api/v1/categories/
 
 ### Configuration
 - `docker-compose.yml` - All services
-- `nginx/nginx.conf` - Reverse proxy config
 - `backend/app/core/config.py` - Backend settings
-- `frontend/next.config.ts` - Frontend config
+- `catalogue/next.config.ts` - Frontend config
 
 ### Backend Entry Points
 - `backend/app/main.py` - FastAPI application
@@ -279,9 +275,9 @@ curl http://localhost:8000/api/v1/categories/
 - `backend/app/initial_data.py` - Seed script
 
 ### Frontend Entry Points
-- `frontend/src/app/layout.tsx` - Root layout
-- `frontend/src/app/page.tsx` - Home page
-- `frontend/src/lib/api.ts` - API client
+- `catalogue/src/app/layout.tsx` - Root layout
+- `catalogue/src/app/page.tsx` - Home page
+- `catalogue/src/lib/api.ts` - API client
 
 ### Documentation
 - `README.md` - Main documentation

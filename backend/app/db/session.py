@@ -1,27 +1,37 @@
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, Session
 from app.core.config import settings
 
-# Convert postgresql:// to postgresql+asyncpg://
-SQLALCHEMY_DATABASE_URL = settings.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
+# Use psycopg2 (sync) - DATABASE_URL already uses postgresql://
+SQLALCHEMY_DATABASE_URL = settings.DATABASE_URL
 
-engine = create_async_engine(
+engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
     echo=True,  # Set to False in production
-    future=True
+    pool_pre_ping=True,  # Verify connections before using
+    pool_size=5,
+    max_overflow=10,
+    connect_args={
+        "connect_timeout": 10,  # Connection timeout in seconds
+        "options": "-c statement_timeout=30000"  # 30 second statement timeout
+    },
+    pool_recycle=3600,  # Recycle connections after 1 hour
+    pool_reset_on_return='commit',  # Reset connections on return
 )
 
-AsyncSessionLocal = sessionmaker(
-    engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
+SessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
+    bind=engine,
 )
 
-async def get_db():
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-        finally:
-            await session.close()
+def get_db():
+    """
+    Dependency for getting database session.
+    FastAPI will handle closing the session automatically.
+    """
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

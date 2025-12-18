@@ -1,32 +1,30 @@
-version: '3.8'
-
 services:
   backend:
     build: ./backend
     container_name: catalog_backend
     volumes:
       - ./backend:/app
+      - ./backend/uploads:/app/uploads
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/catalog_db
-      - REDIS_URL=redis://redis:6379/0
-      - MINIO_ENDPOINT=minio:9000
-      - MINIO_ACCESS_KEY=minioadmin
-      - MINIO_SECRET_KEY=minioadmin
-      - SECRET_KEY=supersecretkey
+      - DATABASE_URL=postgresql://postgres:postgres@catalog_db:5432/catalog_db?sslmode=disable
+      - SECRET_KEY=b7fb243c8cf04461f7e99e11dd3bd4ae1418e7dab6338a3c282e0500be70f735
       - ALGORITHM=HS256
       - ACCESS_TOKEN_EXPIRE_MINUTES=30
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    # command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    restart: unless-stopped
     depends_on:
-      - db
-      - redis
-      - minio
+      db:
+        condition: service_healthy
 
   frontend:
-    build: ./frontend
+    build: ./catalogue
     container_name: catalog_frontend
+    working_dir: /app
     volumes:
-      - ./frontend:/app
+      - ./catalogue:/app
       - /app/node_modules
     ports:
       - "3000:3000"
@@ -34,6 +32,7 @@ services:
       - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
     depends_on:
       - backend
+    restart: unless-stopped
 
   db:
     image: postgres:16-alpine
@@ -44,39 +43,16 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=catalog_db
+      - POSTGRES_HOST_AUTH_METHOD=trust
     ports:
-      - "5434:5432"
-
-  redis:
-    image: redis:7-alpine
-    container_name: catalog_redis
-    ports:
-      - "6380:6379"
-
-  minio:
-    image: minio/minio
-    container_name: catalog_minio
-    ports:
-      - "9002:9000"
-      - "9003:9001"
-    environment:
-      - MINIO_ROOT_USER=minioadmin
-      - MINIO_ROOT_PASSWORD=minioadmin
-    command: server /data --console-address ":9001"
-    volumes:
-      - minio_data:/data
-
-  nginx:
-    image: nginx:alpine
-    container_name: catalog_nginx
-    ports:
-      - "80:80"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-    depends_on:
-      - frontend
-      - backend
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d catalog_db"]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+    restart: unless-stopped
 
 volumes:
   postgres_data:
-  minio_data:

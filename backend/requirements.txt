@@ -1,13 +1,11 @@
 fastapi
 uvicorn[standard]
 sqlalchemy
-asyncpg
 pydantic-settings
 python-jose[cryptography]
 passlib[bcrypt]
 python-multipart
-redis
-minio
+aiofiles
 alembic
 psycopg2-binary
 pytest
