@@ -389,3 +389,58 @@ export const deleteShowroom = async (id: number): Promise<Showroom> => {
     const response = await api.delete<Showroom>(`/showrooms/${id}`);
     return response.data;
 };
+
+// Admin user management functions
+export const getAllUsers = async (): Promise<User[]> => {
+    const response = await api.get<User[]>('/users');
+    return response.data;
+};
+
+export interface UserRoleUpdate {
+    is_superuser?: boolean;
+    is_active?: boolean;
+    full_name?: string;
+    email?: string;
+}
+
+export const updateUserRole = async (userId: number, data: UserRoleUpdate): Promise<User> => {
+    const response = await api.put<User>(`/users/${userId}`, data);
+    return response.data;
+};
+
+// Settings API functions
+export interface SiteSetting {
+    id: number;
+    key: string;
+    value: string | null;
+    value_type: string;
+    description: string | null;
+    category: string;
+    created_at?: string;
+    updated_at?: string;
+}
+
+export interface SettingsBulkUpdate {
+    settings: Record<string, any>;
+}
+
+export const getSettings = async (category?: string): Promise<SiteSetting[]> => {
+    const params = category ? { category } : {};
+    const response = await api.get<SiteSetting[]>('/settings', { params });
+    return response.data;
+};
+
+export const getSetting = async (key: string): Promise<SiteSetting> => {
+    const response = await api.get<SiteSetting>(`/settings/${key}`);
+    return response.data;
+};
+
+export const updateSetting = async (key: string, value: string | boolean | number): Promise<SiteSetting> => {
+    const response = await api.put<SiteSetting>(`/settings/${key}`, { value: String(value) });
+    return response.data;
+};
+
+export const bulkUpdateSettings = async (settings: Record<string, any>): Promise<{ message: string; updated_keys: string[] }> => {
+    const response = await api.post<{ message: string; updated_keys: string[] }>('/settings/bulk-update', { settings });
+    return response.data;
+};
