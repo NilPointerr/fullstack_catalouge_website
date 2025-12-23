@@ -1,26 +1,71 @@
+"""
+Security utilities for authentication and password hashing.
+
+Provides functions for JWT token creation and password hashing/verification.
+"""
 from datetime import datetime, timedelta
-from typing import Any, Union, Optional
+from typing import Any, Union
 from jose import jwt
 import bcrypt
+
 from app.core.config import settings
 
+# JWT algorithm
 ALGORITHM = "HS256"
+
 
 def create_access_token(
     subject: Union[str, Any], expires_delta: timedelta = None
 ) -> str:
+    """
+    Create a JWT access token.
+    
+    Args:
+        subject: Subject (typically user ID) to encode in token
+        expires_delta: Optional custom expiration time delta
+        
+    Returns:
+        Encoded JWT token string
+    """
     if expires_delta:
-        expire = datetime.now() + expires_delta
+        expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.now() + timedelta(
+        expire = datetime.utcnow() + timedelta(
             minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
         )
     to_encode = {"exp": expire, "sub": str(subject)}
-    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = jwt.encode(
+        to_encode, settings.SECRET_KEY, algorithm=ALGORITHM
+    )
     return encoded_jwt
 
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+    """
+    Verify a plain password against a hashed password.
+    
+    Args:
+        plain_password: Plain text password to verify
+        hashed_password: Bcrypt hashed password
+        
+    Returns:
+        True if password matches, False otherwise
+    """
+    return bcrypt.checkpw(
+        plain_password.encode("utf-8"), hashed_password.encode("utf-8")
+    )
+
 
 def get_password_hash(password: str) -> str:
-    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    """
+    Hash a password using bcrypt.
+    
+    Args:
+        password: Plain text password to hash
+        
+    Returns:
+        Bcrypt hashed password string
+    """
+    return bcrypt.hashpw(
+        password.encode("utf-8"), bcrypt.gensalt()
+    ).decode("utf-8")
