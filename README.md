@@ -233,6 +233,18 @@ alembic revision --autogenerate -m "description of changes"
 alembic upgrade head
 ```
 
+**To create tables** 
+```
+cd backend
+python -m app.init_db
+```
+
+**To load sample data**
+```
+cd backend
+python -m app.initial_data
+```
+
 **Rollback a migration**:
 ```bash
 alembic downgrade -1

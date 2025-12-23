@@ -11,7 +11,9 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: str = "postgresql://postgres:postgres@catalog_db:5432/catalog_db?ssl=disable"
-
+    
+    # connect to localhost database
+    # DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5433/catalog_db"
     USERS_OPEN_REGISTRATION: bool = True
 
     # CORS
