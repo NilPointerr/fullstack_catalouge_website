@@ -28,10 +28,16 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     
     # Database
-    DATABASE_URL: str = "postgresql://postgres:postgres@catalog_db:5432/catalog_db?ssl=disable"
+    # DATABASE_URL: str = "postgresql://postgres:postgres@catalog_db:5432/catalog_db?ssl=disable"
     
     # connect to localhost database
-    # DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5433/catalog_db"
+    DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5433/catalog_db"
+    DB_ECHO: bool = False  # SQLAlchemy echo (SQL logging) - set to False in production
+    DB_POOL_SIZE: int = 5
+    DB_MAX_OVERFLOW: int = 10
+    DB_POOL_RECYCLE: int = 3600  # Recycle connections after 1 hour
+    
+    # User management
     USERS_OPEN_REGISTRATION: bool = True
     
     # CORS
