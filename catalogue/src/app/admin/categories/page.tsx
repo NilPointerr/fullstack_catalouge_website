@@ -64,7 +64,7 @@ export default function CategoriesPage() {
         try {
             setLoading(true);
             const data = await getCategories();
-            setCategories(data.map((c) => ({ ...c, image_url: resolveImageUrl(c.image_url) })));
+            setCategories(data);
             setError(null);
         } catch (err: any) {
             console.error("Failed to load categories", err);
@@ -90,8 +90,7 @@ export default function CategoriesPage() {
                 is_active: true,
                 image_url: form.image_url.trim() || undefined,
             });
-            const resolved = { ...created, image_url: resolveImageUrl(created.image_url) };
-            setCategories((prev) => [...prev, resolved]);
+            setCategories((prev) => [...prev, created]);
             resetForm();
         } catch (err: any) {
             console.error("Failed to create category", err);
@@ -107,7 +106,7 @@ export default function CategoriesPage() {
         setForm({
             name: category.name,
             slug: category.slug,
-            image_url: resolveImageUrl(category.image_url),
+            image_url: category.image_url || "",
         });
         setSelectedFile(null);
         setUploadError(null);
@@ -122,8 +121,7 @@ export default function CategoriesPage() {
                 slug: derivedSlug,
                 image_url: form.image_url.trim() || undefined,
             });
-            const resolved = { ...updated, image_url: resolveImageUrl(updated.image_url) };
-            setCategories((prev) => prev.map((c) => (c.id === categoryId ? resolved : c)));
+            setCategories((prev) => prev.map((c) => (c.id === categoryId ? updated : c)));
             resetForm();
         } catch (err: any) {
             console.error("Failed to update category", err);
@@ -139,7 +137,7 @@ export default function CategoriesPage() {
             setUploading(true);
             setUploadError(null);
             const { image_url } = await uploadCategoryImage(selectedFile);
-            setForm((prev) => ({ ...prev, image_url: resolveImageUrl(image_url) }));
+            setForm((prev) => ({ ...prev, image_url }));
         } catch (err: any) {
             console.error("Failed to upload image", err);
             setUploadError(err?.response?.data?.detail || "Failed to upload image.");
@@ -155,7 +153,7 @@ export default function CategoriesPage() {
             setUploading(true);
             setUploadError(null);
             const { image_url } = await uploadCategoryImage(file);
-            setForm((prev) => ({ ...prev, image_url: resolveImageUrl(image_url) }));
+            setForm((prev) => ({ ...prev, image_url }));
         } catch (err: any) {
             console.error("Failed to upload image", err);
             setUploadError(err?.response?.data?.detail || "Failed to upload image.");
@@ -241,7 +239,7 @@ export default function CategoriesPage() {
                             {uploadError && <p className="text-sm text-destructive">{uploadError}</p>}
                             {form.image_url && (
                                 <p className="text-xs text-muted-foreground break-all">
-                                    Using: {form.image_url}
+                                    Using: {resolveImageUrl(form.image_url)}
                                 </p>
                             )}
                         </div>
@@ -358,12 +356,12 @@ export default function CategoriesPage() {
                                                 </div>
                                             ) : category.image_url ? (
                                                 <a
-                                                    href={category.image_url}
+                                                    href={resolveImageUrl(category.image_url)}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     className="text-primary underline-offset-2 hover:underline break-all"
                                                 >
-                                                    {category.image_url}
+                                                    {resolveImageUrl(category.image_url)}
                                                 </a>
                                             ) : (
                                                 "—"
