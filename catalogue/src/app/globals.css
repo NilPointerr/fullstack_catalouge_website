@@ -75,3 +75,12 @@
     color: hsl(var(--foreground));
   }
 }
+
+/* Utility to hide native scrollbars for custom carousels */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

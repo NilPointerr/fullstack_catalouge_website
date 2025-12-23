@@ -178,7 +178,21 @@ export interface Category {
     description?: string;
     image_url?: string;
     is_active: boolean;
+    parent_id?: number | null;
+    children?: Category[];
+    product_count?: number;
 }
+
+export interface CategoryCreate {
+    name: string;
+    slug: string;
+    description?: string;
+    image_url?: string;
+    is_active?: boolean;
+    parent_id?: number | null;
+}
+
+export type CategoryUpdate = Partial<CategoryCreate>;
 
 export interface Showroom {
     id: number;
@@ -228,6 +242,32 @@ export interface ShowroomUpdate {
 // API Methods
 export const getCategories = async (): Promise<Category[]> => {
     const response = await api.get<Category[]>('/categories');
+    return response.data;
+};
+
+export const createCategory = async (data: CategoryCreate): Promise<Category> => {
+    const response = await api.post<Category>('/categories', data);
+    return response.data;
+};
+
+export const updateCategory = async (id: number, data: CategoryUpdate): Promise<Category> => {
+    const response = await api.put<Category>(`/categories/${id}`, data);
+    return response.data;
+};
+
+export const uploadCategoryImage = async (file: File): Promise<{ image_url: string }> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const response = await api.post<{ image_url: string }>('/categories/upload-image', formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data',
+        },
+    });
+    return response.data;
+};
+
+export const deleteCategory = async (id: number): Promise<Category> => {
+    const response = await api.delete<Category>(`/categories/${id}`);
     return response.data;
 };
 
