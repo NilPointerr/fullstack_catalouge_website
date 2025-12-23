@@ -1,11 +1,16 @@
 from typing import Any, List
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.exc import IntegrityError
+import logging
 
 from app.api import deps
 from app.models.category import Category
 from app.models.user import User
 from app.schemas.category import Category as CategorySchema, CategoryCreate, CategoryUpdate
+from app.core.file_upload import save_uploaded_file
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -34,6 +39,7 @@ def create_category(
     """
     Create new category.
     """
+    logger.info(f"Creating category: {category_in.name} (slug: {category_in.slug})")
     data = category_in.model_dump()
     parent_id = data.get("parent_id")
     if parent_id in (0, None):
@@ -46,8 +52,13 @@ def create_category(
 
     db_category = Category(**data)
     db.add(db_category)
-    db.commit()
-    db.refresh(db_category)
+    try:
+        db.commit()
+        db.refresh(db_category)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Category with this slug already exists")
+    logger.info(f"Category created successfully with ID: {db_category.id}, image_url: {db_category.image_url}")
     return db_category
 
 @router.put("/{category_id}", response_model=CategorySchema)
@@ -61,18 +72,37 @@ def update_category(
     """
     Update a category.
     """
+    logger.info(f"Updating category ID: {category_id}")
     category = db.query(Category).filter(Category.id == category_id).first()
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
         
     update_data = category_in.dict(exclude_unset=True)
+    logger.info(f"Update data: {update_data}")
     for field, value in update_data.items():
         setattr(category, field, value)
         
     db.add(category)
-    db.commit()
-    db.refresh(category)
+    try:
+        db.commit()
+        db.refresh(category)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Category with this slug already exists")
+    logger.info(f"Category updated successfully, image_url: {category.image_url}")
     return category
+
+
+@router.post("/upload-image")
+async def upload_category_image(
+    file: UploadFile = File(...),
+    current_user: User = Depends(deps.get_current_active_superuser),
+):
+    """
+    Upload a category image and return its URL.
+    """
+    image_url = await save_uploaded_file(file)
+    return {"image_url": image_url}
 
 @router.delete("/{category_id}", response_model=CategorySchema)
 def delete_category(
