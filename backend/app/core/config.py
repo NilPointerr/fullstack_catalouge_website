@@ -32,12 +32,6 @@ class Settings(BaseSettings):
     
     # connect to localhost database
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5433/catalog_db"
-    DB_ECHO: bool = False  # SQLAlchemy echo (SQL logging) - set to False in production
-    DB_POOL_SIZE: int = 5
-    DB_MAX_OVERFLOW: int = 10
-    DB_POOL_RECYCLE: int = 3600  # Recycle connections after 1 hour
-    
-    # User management
     USERS_OPEN_REGISTRATION: bool = True
     
     # CORS
@@ -54,6 +48,24 @@ class Settings(BaseSettings):
     
     # Logging
     LOG_LEVEL: str = "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+    
+    # Database Connection Pooling
+    DB_ECHO: bool = False  # SQL query logging (enable for debugging)
+    DB_POOL_SIZE: int = 10  # Number of connections to maintain in pool
+    DB_MAX_OVERFLOW: int = 20  # Maximum connections beyond pool_size
+    DB_POOL_RECYCLE: int = 3600  # Recycle connections after 1 hour
+    
+    # Rate Limiting
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_PER_MINUTE: int = 60  # Requests per minute for general endpoints
+    RATE_LIMIT_AUTH_PER_MINUTE: int = 10  # Requests per minute for auth endpoints
+    RATE_LIMIT_STRICT_PER_MINUTE: int = 5  # Requests per minute for strict endpoints (e.g., registration)
+    
+    # Response Caching
+    CACHE_ENABLED: bool = True
+    CACHE_TTL: int = 300  # Cache TTL in seconds (5 minutes default)
+    CACHE_GET_TTL: int = 300  # Cache TTL for GET endpoints (5 minutes)
+    CACHE_LIST_TTL: int = 180  # Cache TTL for list endpoints (3 minutes)
     
     @field_validator("SECRET_KEY")
     @classmethod

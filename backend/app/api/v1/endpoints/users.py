@@ -1,18 +1,21 @@
 from typing import Any, List
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
 from app.api import deps
 from app.core import security
 from app.core.config import settings
+from app.core.rate_limit import rate_limit_general, rate_limit_strict
 from app.models.user import User
 from app.schemas.user import User as UserSchema, UserCreate, UserUpdate
 
 router = APIRouter()
 
 @router.get("/", response_model=List[UserSchema])
-def read_users(
+@rate_limit_general()
+async def read_users(
+    request: Request,
     db: Session = Depends(deps.get_db),
     skip: int = 0,
     limit: int = 100,
@@ -25,7 +28,9 @@ def read_users(
     return users
 
 @router.post("/", response_model=UserSchema)
-def create_user(
+@rate_limit_strict()
+async def create_user(
+    request: Request,
     *,
     db: Session = Depends(deps.get_db),
     user_in: UserCreate,
@@ -52,7 +57,9 @@ def create_user(
     return db_user
 
 @router.put("/me", response_model=UserSchema)
-def update_user_me(
+@rate_limit_general()
+async def update_user_me(
+    request: Request,
     *,
     db: Session = Depends(deps.get_db),
     password: str = Body(None),
@@ -85,7 +92,9 @@ def update_user_me(
     return current_user
 
 @router.get("/me", response_model=UserSchema)
-def read_user_me(
+@rate_limit_general()
+async def read_user_me(
+    request: Request,
     current_user: User = Depends(deps.get_current_active_user),
 ) -> Any:
     """
@@ -94,7 +103,9 @@ def read_user_me(
     return current_user
 
 @router.put("/{user_id}", response_model=UserSchema)
-def update_user(
+@rate_limit_general()
+async def update_user(
+    request: Request,
     *,
     db: Session = Depends(deps.get_db),
     user_id: int,
@@ -135,7 +146,9 @@ def update_user(
     return user
 
 @router.post("/open", response_model=UserSchema)
-def create_user_open(
+@rate_limit_strict()
+async def create_user_open(
+    request: Request,
     *,
     db: Session = Depends(deps.get_db),
     user_in: UserCreate,

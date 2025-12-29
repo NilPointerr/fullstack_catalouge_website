@@ -7,6 +7,7 @@ import time
 import logging
 from pathlib import Path
 from fastapi import FastAPI, Request, status
+from slowapi.errors import RateLimitExceeded
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
@@ -17,6 +18,7 @@ from sqlalchemy import text
 from app.core.config import settings
 from app.core.logging_config import setup_logging
 from app.core.exceptions import create_error_response
+from app.core.rate_limit import limiter
 from app.db.session import engine
 
 # Setup logging first
@@ -31,6 +33,23 @@ app = FastAPI(
     docs_url="/docs" if settings.is_development else None,  # Disable docs in production
     redoc_url="/redoc" if settings.is_development else None,  # Disable redoc in production
 )
+
+# Add rate limiter to app state
+app.state.limiter = limiter
+
+# Add rate limit exception handler
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    """Handle rate limit exceeded errors."""
+    response = JSONResponse(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        content={
+            "detail": f"Rate limit exceeded: {exc.detail}",
+            "retry_after": exc.retry_after,
+        },
+        headers={"Retry-After": str(exc.retry_after)},
+    )
+    return _add_cors_headers(response, request)
 
 # CORS configuration
 # Note: When allow_credentials=True, you cannot use allow_origin_regex=".*"

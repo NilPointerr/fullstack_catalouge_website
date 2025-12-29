@@ -11,11 +11,17 @@ from app.models.user import User
 from app.schemas.product import Product as ProductSchema, ProductCreate, ProductUpdate
 from app.schemas.pagination import PaginatedResponse
 from app.core.file_upload import save_multiple_files
+from app.core.rate_limit import rate_limit_general
+from app.core.cache import cache_response, invalidate_cache
+from app.core.config import settings
 
 router = APIRouter()
 
 @router.get("/", response_model=PaginatedResponse[ProductSchema])
-def read_products(
+@rate_limit_general()
+@cache_response(ttl=settings.CACHE_LIST_TTL, key_prefix="products")
+async def read_products(
+    request: Request,
     db: Session = Depends(deps.get_db),
     page: int = Query(1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(12, ge=1, le=100, description="Number of items per page"),
@@ -129,7 +135,10 @@ def read_products(
     )
 
 @router.get("/trending", response_model=List[ProductSchema])
-def get_trending_products(
+@rate_limit_general()
+@cache_response(ttl=settings.CACHE_GET_TTL, key_prefix="products_trending")
+async def get_trending_products(
+    request: Request,
     db: Session = Depends(deps.get_db),
     limit: int = Query(4, ge=1, le=20, description="Number of trending products to return"),
 ) -> Any:
@@ -154,7 +163,10 @@ def get_trending_products(
     return products
 
 @router.get("/{product_id}", response_model=ProductSchema)
-def read_product(
+@rate_limit_general()
+@cache_response(ttl=settings.CACHE_GET_TTL, key_prefix="product")
+async def read_product(
+    request: Request,
     *,
     db: Session = Depends(deps.get_db),
     product_id: int,
@@ -177,6 +189,7 @@ def read_product(
     return product
 
 @router.post("/", response_model=ProductSchema)
+@rate_limit_general()
 async def create_product(
     request: Request,
     db: Session = Depends(deps.get_db),
@@ -337,6 +350,9 @@ async def create_product(
         if product and product.images:
             product.images.sort(key=lambda img: (not img.is_primary, img.id))
         
+        # Invalidate product list cache
+        invalidate_cache("products")
+        
         return product
     
     else:
@@ -379,9 +395,13 @@ async def create_product(
         if product and product.images:
             product.images.sort(key=lambda img: (not img.is_primary, img.id))
         
+        # Invalidate product list cache
+        invalidate_cache("products")
+        
         return product
 
 @router.put("/{product_id}", response_model=ProductSchema)
+@rate_limit_general()
 async def update_product(
     product_id: int,
     request: Request,
@@ -566,6 +586,11 @@ async def update_product(
         if updated_product and updated_product.images:
             updated_product.images.sort(key=lambda img: (not img.is_primary, img.id))
         
+        # Invalidate caches
+        invalidate_cache("products")
+        invalidate_cache(f"product:{product_id}")
+        invalidate_cache("products_trending")
+        
         return updated_product
     
     else:
@@ -598,10 +623,17 @@ async def update_product(
         if updated_product and updated_product.images:
             updated_product.images.sort(key=lambda img: (not img.is_primary, img.id))
         
+        # Invalidate caches
+        invalidate_cache("products")
+        invalidate_cache(f"product:{product_id}")
+        invalidate_cache("products_trending")
+        
         return updated_product
 
 @router.delete("/{product_id}", response_model=ProductSchema)
-def delete_product(
+@rate_limit_general()
+async def delete_product(
+    request: Request,
     *,
     db: Session = Depends(deps.get_db),
     product_id: int,
@@ -624,5 +656,10 @@ def delete_product(
     # Delete product (cascade will handle variants and images)
     db.delete(product)
     db.commit()
+    
+    # Invalidate caches
+    invalidate_cache("products")
+    invalidate_cache(f"product:{product_id}")
+    invalidate_cache("products_trending")
     
     return result

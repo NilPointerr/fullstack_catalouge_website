@@ -1,6 +1,6 @@
 from datetime import timedelta
 from typing import Any
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from jose import jwt, JWTError
@@ -9,13 +9,16 @@ from pydantic import ValidationError
 from app.api import deps
 from app.core import security
 from app.core.config import settings
+from app.core.rate_limit import rate_limit_auth
 from app.models.user import User
 from app.schemas.token import Token, LoginRequest, TokenPayload
 
 router = APIRouter()
 
 @router.post("/login/access-token", response_model=Token)
-def login_access_token(
+@rate_limit_auth()
+async def login_access_token(
+    request: Request,
     credentials: LoginRequest,
     db: Session = Depends(deps.get_db),
 ) -> Any:
@@ -45,7 +48,9 @@ def login_access_token(
     }
 
 @router.post("/login/refresh-token", response_model=Token)
-def refresh_access_token(
+@rate_limit_auth()
+async def refresh_access_token(
+    request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(deps.bearer_scheme),
     db: Session = Depends(deps.get_db),
 ) -> Any:

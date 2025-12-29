@@ -1,5 +1,5 @@
 from typing import Any, List
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session, selectinload
 
 from app.api import deps
@@ -7,11 +7,17 @@ from app.models.wishlist import Wishlist
 from app.models.product import Product
 from app.models.user import User
 from app.schemas.wishlist import Wishlist as WishlistSchema, WishlistCreate
+from app.core.rate_limit import rate_limit_general
+from app.core.cache import cache_response, invalidate_cache
+from app.core.config import settings
 
 router = APIRouter()
 
 @router.get("/", response_model=List[WishlistSchema])
-def read_wishlist(
+@rate_limit_general()
+@cache_response(ttl=settings.CACHE_LIST_TTL, key_prefix="wishlist")
+async def read_wishlist(
+    request: Request,
     db: Session = Depends(deps.get_db),
     skip: int = 0,
     limit: int = 100,
@@ -28,7 +34,9 @@ def read_wishlist(
     return wishlist_items
 
 @router.post("/", response_model=WishlistSchema)
-def add_to_wishlist(
+@rate_limit_general()
+async def add_to_wishlist(
+    request: Request,
     *,
     db: Session = Depends(deps.get_db),
     wishlist_in: WishlistCreate,
@@ -62,10 +70,16 @@ def add_to_wishlist(
     wishlist_item = db.query(Wishlist).options(
         selectinload(Wishlist.product).selectinload(Product.images)
     ).filter(Wishlist.id == db_wishlist.id).first()
+    
+    # Invalidate wishlist cache
+    invalidate_cache("wishlist")
+    
     return wishlist_item
 
 @router.delete("/{product_id}", response_model=WishlistSchema)
-def remove_from_wishlist(
+@rate_limit_general()
+async def remove_from_wishlist(
+    request: Request,
     *,
     db: Session = Depends(deps.get_db),
     product_id: int,
@@ -89,4 +103,8 @@ def remove_from_wishlist(
         
     db.delete(wishlist_item)
     db.commit()
+    
+    # Invalidate wishlist cache
+    invalidate_cache("wishlist")
+    
     return result

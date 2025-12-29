@@ -1,5 +1,5 @@
 from typing import Any, List
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Request
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.exc import IntegrityError
 import logging
@@ -9,13 +9,19 @@ from app.models.category import Category
 from app.models.user import User
 from app.schemas.category import Category as CategorySchema, CategoryCreate, CategoryUpdate
 from app.core.file_upload import save_uploaded_file
+from app.core.rate_limit import rate_limit_general
+from app.core.cache import cache_response, invalidate_cache
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 @router.get("/", response_model=List[CategorySchema])
-def read_categories(
+@rate_limit_general()
+@cache_response(ttl=settings.CACHE_LIST_TTL, key_prefix="categories")
+async def read_categories(
+    request: Request,
     db: Session = Depends(deps.get_db),
     skip: int = 0,
     limit: int = 100,
@@ -30,7 +36,9 @@ def read_categories(
     return categories
 
 @router.post("/", response_model=CategorySchema)
-def create_category(
+@rate_limit_general()
+async def create_category(
+    request: Request,
     *,
     db: Session = Depends(deps.get_db),
     category_in: CategoryCreate,
@@ -59,10 +67,16 @@ def create_category(
         db.rollback()
         raise HTTPException(status_code=400, detail="Category with this slug already exists")
     logger.info(f"Category created successfully with ID: {db_category.id}, image_url: {db_category.image_url}")
+    
+    # Invalidate categories cache
+    invalidate_cache("categories")
+    
     return db_category
 
 @router.put("/{category_id}", response_model=CategorySchema)
-def update_category(
+@rate_limit_general()
+async def update_category(
+    request: Request,
     *,
     db: Session = Depends(deps.get_db),
     category_id: int,
@@ -90,11 +104,17 @@ def update_category(
         db.rollback()
         raise HTTPException(status_code=400, detail="Category with this slug already exists")
     logger.info(f"Category updated successfully, image_url: {category.image_url}")
+    
+    # Invalidate categories cache
+    invalidate_cache("categories")
+    
     return category
 
 
 @router.post("/upload-image")
+@rate_limit_general()
 async def upload_category_image(
+    request: Request,
     file: UploadFile = File(...),
     current_user: User = Depends(deps.get_current_active_superuser),
 ):
@@ -105,7 +125,9 @@ async def upload_category_image(
     return {"image_url": image_url}
 
 @router.delete("/{category_id}", response_model=CategorySchema)
-def delete_category(
+@rate_limit_general()
+async def delete_category(
+    request: Request,
     *,
     db: Session = Depends(deps.get_db),
     category_id: int,
@@ -120,4 +142,8 @@ def delete_category(
         
     db.delete(category)
     db.commit()
+    
+    # Invalidate categories cache
+    invalidate_cache("categories")
+    
     return category

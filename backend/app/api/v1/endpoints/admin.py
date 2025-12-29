@@ -1,5 +1,5 @@
 from typing import Any
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
@@ -7,11 +7,17 @@ from app.api import deps
 from app.models.user import User
 from app.models.product import Product
 from app.models.category import Category
+from app.core.rate_limit import rate_limit_general
+from app.core.cache import cache_response
+from app.core.config import settings
 
 router = APIRouter()
 
 @router.get("/stats")
-def get_admin_stats(
+@rate_limit_general()
+@cache_response(ttl=60, key_prefix="admin_stats")  # 1 minute cache for stats
+async def get_admin_stats(
+    request: Request,
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_active_superuser),
 ) -> Any:

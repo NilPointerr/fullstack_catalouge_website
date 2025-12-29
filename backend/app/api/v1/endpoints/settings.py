@@ -1,5 +1,5 @@
 from typing import Any, List, Dict
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.api import deps
@@ -11,11 +11,17 @@ from app.schemas.settings import (
     SiteSettingsUpdate,
     SettingsBulkUpdate
 )
+from app.core.rate_limit import rate_limit_general
+from app.core.cache import cache_response, invalidate_cache
+from app.core.config import settings
 
 router = APIRouter()
 
 @router.get("/", response_model=List[SiteSettingsSchema])
-def read_settings(
+@rate_limit_general()
+@cache_response(ttl=settings.CACHE_LIST_TTL, key_prefix="settings")
+async def read_settings(
+    request: Request,
     db: Session = Depends(deps.get_db),
     category: str = None,
     current_user: User = Depends(deps.get_current_active_superuser),
@@ -30,7 +36,10 @@ def read_settings(
     return settings
 
 @router.get("/{setting_key}", response_model=SiteSettingsSchema)
-def read_setting(
+@rate_limit_general()
+@cache_response(ttl=settings.CACHE_GET_TTL, key_prefix="setting")
+async def read_setting(
+    request: Request,
     *,
     db: Session = Depends(deps.get_db),
     setting_key: str,
@@ -45,7 +54,9 @@ def read_setting(
     return setting
 
 @router.post("/", response_model=SiteSettingsSchema)
-def create_setting(
+@rate_limit_general()
+async def create_setting(
+    request: Request,
     *,
     db: Session = Depends(deps.get_db),
     setting_in: SiteSettingsCreate,
@@ -63,10 +74,17 @@ def create_setting(
     db.add(db_setting)
     db.commit()
     db.refresh(db_setting)
+    
+    # Invalidate settings cache
+    invalidate_cache("settings")
+    invalidate_cache("settings_public")
+    
     return db_setting
 
 @router.put("/{setting_key}", response_model=SiteSettingsSchema)
-def update_setting(
+@rate_limit_general()
+async def update_setting(
+    request: Request,
     *,
     db: Session = Depends(deps.get_db),
     setting_key: str,
@@ -87,10 +105,18 @@ def update_setting(
     db.add(setting)
     db.commit()
     db.refresh(setting)
+    
+    # Invalidate settings cache
+    invalidate_cache("settings")
+    invalidate_cache(f"setting:{setting_key}")
+    invalidate_cache("settings_public")
+    
     return setting
 
 @router.post("/bulk-update")
-def bulk_update_settings(
+@rate_limit_general()
+async def bulk_update_settings(
+    request: Request,
     *,
     db: Session = Depends(deps.get_db),
     settings_update: SettingsBulkUpdate,
@@ -123,10 +149,18 @@ def bulk_update_settings(
             updated.append(key)
     
     db.commit()
+    
+    # Invalidate all settings cache
+    invalidate_cache("settings")
+    invalidate_cache("settings_public")
+    
     return {"message": "Settings updated successfully", "updated_keys": updated}
 
 @router.get("/public/general")
-def get_public_settings(
+@rate_limit_general()
+@cache_response(ttl=settings.CACHE_GET_TTL, key_prefix="settings_public")
+async def get_public_settings(
+    request: Request,
     db: Session = Depends(deps.get_db),
 ) -> Any:
     """

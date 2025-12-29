@@ -8,11 +8,17 @@ from app.models.showroom import Showroom
 from app.models.user import User
 from app.schemas.showroom import Showroom as ShowroomSchema, ShowroomCreate, ShowroomUpdate
 from app.core.file_upload import save_multiple_files
+from app.core.rate_limit import rate_limit_general
+from app.core.cache import cache_response, invalidate_cache
+from app.core.config import settings
 
 router = APIRouter()
 
 @router.get("/", response_model=List[ShowroomSchema])
-def read_showrooms(
+@rate_limit_general()
+@cache_response(ttl=settings.CACHE_LIST_TTL, key_prefix="showrooms")
+async def read_showrooms(
+    request: Request,
     db: Session = Depends(deps.get_db),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
@@ -28,7 +34,10 @@ def read_showrooms(
     return showrooms
 
 @router.get("/{showroom_id}", response_model=ShowroomSchema)
-def read_showroom(
+@rate_limit_general()
+@cache_response(ttl=settings.CACHE_GET_TTL, key_prefix="showroom")
+async def read_showroom(
+    request: Request,
     *,
     db: Session = Depends(deps.get_db),
     showroom_id: int,
@@ -42,6 +51,7 @@ def read_showroom(
     return showroom
 
 @router.post("/", response_model=ShowroomSchema)
+@rate_limit_general()
 async def create_showroom(
     *,
     request: Request,
@@ -119,6 +129,10 @@ async def create_showroom(
         db.add(db_showroom)
         db.commit()
         db.refresh(db_showroom)
+        
+        # Invalidate showrooms cache
+        invalidate_cache("showrooms")
+        
         return db_showroom
     else:
         # Using JSON body
@@ -129,9 +143,14 @@ async def create_showroom(
         db.add(db_showroom)
         db.commit()
         db.refresh(db_showroom)
+        
+        # Invalidate showrooms cache
+        invalidate_cache("showrooms")
+        
         return db_showroom
 
 @router.put("/{showroom_id}", response_model=ShowroomSchema)
+@rate_limit_general()
 async def update_showroom(
     *,
     request: Request,
@@ -222,10 +241,17 @@ async def update_showroom(
     db.add(showroom)
     db.commit()
     db.refresh(showroom)
+    
+    # Invalidate showrooms cache
+    invalidate_cache("showrooms")
+    invalidate_cache(f"showroom:{showroom_id}")
+    
     return showroom
 
 @router.delete("/{showroom_id}", response_model=ShowroomSchema)
-def delete_showroom(
+@rate_limit_general()
+async def delete_showroom(
+    request: Request,
     *,
     db: Session = Depends(deps.get_db),
     showroom_id: int,
@@ -240,5 +266,10 @@ def delete_showroom(
     
     db.delete(showroom)
     db.commit()
+    
+    # Invalidate showrooms cache
+    invalidate_cache("showrooms")
+    invalidate_cache(f"showroom:{showroom_id}")
+    
     return showroom
 
